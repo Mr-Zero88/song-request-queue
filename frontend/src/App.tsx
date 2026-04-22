@@ -13,7 +13,6 @@ import Login from "./components/login";
 import { useSignals, useComputed } from "@preact/signals-react/runtime";
 
 function App() {
-	useSignals();
 	const isLoggedIn = useComputed(() => session.value != null);
 
 	console.log(isLoggedIn.value, session.value);

@@ -24,6 +24,9 @@ export default defineConfig({
 			useCSSLayers: true,
 		}),
 		react(),
-		babel({ presets: [reactCompilerPreset()] }),
+		babel({
+			presets: [reactCompilerPreset()],
+			plugins: [["module:@preact/signals-react-transform"]],
+		}),
 	],
 });

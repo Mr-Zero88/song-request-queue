@@ -15,7 +15,6 @@ const styles = stylex.create({
 type LoginProps = React.HTMLAttributes<HTMLDivElement> & {};
 
 export default function Login(props: LoginProps) {
-	useSignals();
 	let input = useRef<HTMLInputElement>(null);
 
 	return (
