@@ -20,6 +20,9 @@ importers:
       react-dom:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
+      song-request-queue-common:
+        specifier: file:../common
+        version: file:../common
     devDependencies:
       '@babel/core':
         specifier: ^7.29.0
@@ -987,6 +990,9 @@ packages:
   shebang-regex@3.0.0:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
+
+  song-request-queue-common@file:../common:
+    resolution: {directory: ../common, type: directory}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -2023,6 +2029,8 @@ snapshots:
       shebang-regex: 3.0.0
 
   shebang-regex@3.0.0: {}
+
+  song-request-queue-common@file:../common: {}
 
   source-map-js@1.2.1: {}
 
