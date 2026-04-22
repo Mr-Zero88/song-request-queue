@@ -1,8 +1,12 @@
-import { Router } from 'express';
+import { json, Router } from 'express';
 import session from './routes/session';
 import { errorHandler } from './middlewares/errorHandler';
+import cookiesParser from 'cookie-parser';
 
 const api = Router();
+
+api.use(json());
+api.use(cookiesParser());
 
 // Routes
 api.use('/session', session);

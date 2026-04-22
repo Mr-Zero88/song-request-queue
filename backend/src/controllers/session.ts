@@ -5,11 +5,13 @@ const sessions: Session[] = [];
 
 export const getSession: (args: GetSessionArgs) => Promise<Session | null> = async ({ id }) => {
     var session = sessions.find(session => session.id === id);
-    if(session == null) throw new Error(`Session not '${id}' found`);
+    if(session == null) throw new Error(`Session with ID '${id}' not found`);
     return session;
 }
 
 export const createSession: (args: CreateSessionArgs) => Promise<Session> = async ({ username }) => {
+    if (!username) throw new Error('Username is required');
+    if (sessions.some(session => session.username === username)) throw new Error('Username is already taken');
     var session: Session = {
         id: generateId(),
         username: username,
