@@ -3,10 +3,6 @@ export interface Session {
     username: string;
 }
 
-export interface GetSessionArgs {
-    id: string;
-}
-
 export interface CreateSessionArgs {
     username: string;
 }
