@@ -4,9 +4,13 @@ import { Queue } from "song-request-queue-common/types/queue";
 import { AppError } from "../middlewares/errorHandler";
 import { generateId } from "../util";
 
-export const getQueue: (id: string) => Promise<Queue> = async (id) => {
+export const getQueues: () => Promise<Queue[]> = async () => {
     await queues.ready;
-    var queue = queues.find(queue => queue.id === id);
+    return queues;
+}
+
+export const getQueue: (id: string) => Promise<Queue> = async (id) => {
+    var queue = await getQueues().then(queues => queues.find(queue => queue.id === id));
     if(queue == null) throw new QueueNotFoundError(new Error(`Id '${id}' not in queue database`));
     return queue;
 }

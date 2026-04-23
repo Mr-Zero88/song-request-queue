@@ -2,6 +2,7 @@ import { json, Router } from 'express';
 import cookiesParser from 'cookie-parser';
 import session from './routes/session';
 import queue from './routes/queue';
+import queues from './routes/queues';
 import { errorHandler } from './middlewares/errorHandler';
 
 const api = Router();
@@ -12,6 +13,7 @@ api.use(cookiesParser());
 // Routes
 api.use('/session', session);
 api.use('/queue', queue);
+api.use('/queues', queues);
 
 api.get('/', (req, res) => {
     res.send('Welcome to the API!');
