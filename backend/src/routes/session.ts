@@ -1,5 +1,6 @@
-import { json, Router, NextFunction, Request, Response } from 'express';
+import { Router, NextFunction, Request, Response } from 'express';
 import * as controllers from '../controllers/session';
+import { handleError } from '../util';
 
 const router = Router();
 router.get('/', getSession);
@@ -16,16 +17,6 @@ export async function createSession(req: Request, res: Response, next: NextFunct
     if(session instanceof Error) return next(session);
     res.cookie('sessionId', session.id, { httpOnly: true });
     res.status(200).json(session);
-}
-
-function handleError(error: unknown) {
-    if (error instanceof Error) {
-        return error;
-    }
-    if(typeof error === 'string') {
-        return new Error(error);
-    }
-    return new Error('An unknown error occurred');
 }
 
 export default router;

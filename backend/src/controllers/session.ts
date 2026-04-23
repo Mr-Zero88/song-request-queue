@@ -1,7 +1,8 @@
 import { Session } from "song-request-queue-common/types/session";
 import { sessions } from "../database";
+import { generateId } from "../util";
 
-export const getSession: (id: string) => Promise<Session | null> = async (id) => {
+export const getSession: (id: string) => Promise<Session> = async (id) => {
     await sessions.ready;
     var session = sessions.find(session => session.id === id);
     if(session == null) throw new Error(`Session with ID '${id}' not found`);
@@ -18,8 +19,4 @@ export const createSession: (username: string) => Promise<Session> = async (user
     }
     sessions.push(session);
     return session;
-}
-
-function generateId(): string {
-    return Math.random().toString(36).substring(2, 2 + 9);
 }
