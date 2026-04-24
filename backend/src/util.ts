@@ -1,5 +1,5 @@
 import * as express from "express";
-import { AppError } from "./middlewares/errorHandler";
+import { ApiError } from "./middlewares/errorHandler";
 
 
 export function handleError(error: unknown) {

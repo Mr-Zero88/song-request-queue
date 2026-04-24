@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 
-export interface AppError extends Error {
+export interface ApiError extends Error {
   status: number;
 }
 
-function isAppError(error: unknown): error is AppError {
+function isApiError(error: unknown): error is ApiError {
   return error instanceof Error && 'status' in error;
 }
 
@@ -14,8 +14,9 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  if (!isAppError(err)) {
-    console.warn(`Not an AppError: ${err instanceof Error ? err.message : String(err)}`);
+  if (!isApiError(err)) {
+    console.warn(`Not an ApiError: ${err instanceof Error ? err.message : String(err)}`);
+    res.status(500).json(formatError(err));
   } else {
     res.status(err.status || 500).json(formatError(err));
     if(err.status >= 500) {
@@ -24,8 +25,9 @@ export const errorHandler = (
   }  
 };
 
-function formatError(error: AppError): object {
+function formatError(error: ApiError): object {
   return {
+      status: error.status || 500,
       name: error.name,
       message: error.message || 'Internal Server Error',
       cause: (error as any).cause ? formatError((error as any).cause) : undefined,

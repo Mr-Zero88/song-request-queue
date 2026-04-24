@@ -1,7 +1,7 @@
 import {  } from "song-request-queue-common/types/session";
 import { queues } from "../database";
 import { Queue } from "song-request-queue-common/types/queue";
-import { AppError } from "../middlewares/errorHandler";
+import { ApiError } from "../middlewares/errorHandler";
 import { generateId } from "../util";
 
 export const getQueues: () => Promise<Queue[]> = async () => {
@@ -11,7 +11,7 @@ export const getQueues: () => Promise<Queue[]> = async () => {
 
 export const getQueue: (id: string) => Promise<Queue> = async (id) => {
     var queue = await getQueues().then(queues => queues.find(queue => queue.id === id));
-    if(queue == null) throw new QueueNotFoundError(new Error(`Id '${id}' not in queue database`));
+    if(queue == null) throw new QueueNotFoundError(id);
     return queue;
 }
 
@@ -21,10 +21,10 @@ export const addToQueue: (id: string, link: string) => Promise<Queue> = async (i
     return queue;
 }
 
-export class QueueNotFoundError extends Error implements AppError {
+export class QueueNotFoundError extends Error implements ApiError {
     status = 404;
     name = 'QueueNotFoundError';
-    constructor(cause: Error) {
-        super("Queue not found", { cause });
+    constructor(id: string) {
+        super(`Queue with ID '${id}' not found`, {});
     }
 }

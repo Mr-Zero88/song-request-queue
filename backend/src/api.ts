@@ -4,6 +4,7 @@ import session from './routes/session';
 import queue from './routes/queue';
 import queues from './routes/queues';
 import { errorHandler } from './middlewares/errorHandler';
+import { handleSession } from './middlewares/sessionHandler';
 
 const api = Router();
 
@@ -12,8 +13,8 @@ api.use(cookiesParser());
 
 // Routes
 api.use('/session', session);
-api.use('/queue', queue);
-api.use('/queues', queues);
+api.use('/queue', handleSession, queue);
+api.use('/queues', handleSession, queues);
 
 api.get('/', (req, res) => {
     res.send('Welcome to the API!');
