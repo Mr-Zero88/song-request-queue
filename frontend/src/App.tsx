@@ -32,15 +32,17 @@ let f = (link: string) => {
 function App() {
 	return (
 		<div {...stylex.props(styles.root)}>
-			<ClipboardButton onValueChange={f}>
-				Request Link From Clipboard
-			</ClipboardButton>
 			{session.value != null ? (
-				queues.value.map((queue, key) => (
-					<div key={key + queue.value.id} {...stylex.props(styles.queues)}>
-						<Queue key={key + queue.value.id} queue={queue} />
-					</div>
-				))
+				<>
+					<ClipboardButton onValueChange={f}>
+						Request Link From Clipboard
+					</ClipboardButton>
+					{queues.value.map((queue, key) => (
+						<div key={key + queue.value.id} {...stylex.props(styles.queues)}>
+							<Queue key={key + queue.value.id} queue={queue} />
+						</div>
+					))}
+				</>
 			) : (
 				<>
 					<Login />
