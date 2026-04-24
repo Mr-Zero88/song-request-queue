@@ -3,20 +3,25 @@ import Login from "@/components/login";
 import Queue from "@/components/queue";
 
 import * as stylex from "@stylexjs/stylex";
-import { layout, colors } from "./vars.stylex.ts";
+import { layout, colors, fontSizes, radius } from "./vars.stylex.ts";
 import ClipboardButton from "./components/clipboardButton.tsx";
 
 const styles = stylex.create({
 	root: {
-		margin: 0,
-		padding: 0,
-		backgroundColor: colors.background,
-		minHeight: "100vh",
-		width: "100%",
-	},
-	queues: {
 		maxWidth: layout.contentMaxWidth,
 		margin: "auto",
+		display: "flex",
+		flexDirection: "column",
+	},
+	queues: {},
+	button: {
+		fontSize: fontSizes.xxl,
+		margin: "auto",
+		color: colors.background,
+		backgroundColor: colors.primaryText,
+		borderRadius: radius.sm,
+		borderStyle: "solid",
+		padding: "0.2rem 1.3rem",
 	},
 });
 
@@ -34,7 +39,7 @@ function App() {
 		<div {...stylex.props(styles.root)}>
 			{session.value != null ? (
 				<>
-					<ClipboardButton onValueChange={f}>
+					<ClipboardButton {...stylex.props(styles.button)} onValueChange={f}>
 						Request Link From Clipboard
 					</ClipboardButton>
 					{queues.value.map((queue, key) => (
