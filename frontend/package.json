@@ -12,14 +12,15 @@
 	"dependencies": {
 		"@preact/signals-react": "^3.10.0",
 		"@stylexjs/stylex": "^0.18.3",
+		"inter-ui": "^4.1.1",
 		"react": "^19.2.5",
 		"react-dom": "^19.2.5",
 		"song-request-queue-common": "file:../common"
 	},
 	"devDependencies": {
-		"@preact/signals-react-transform": "^0.8.1",
 		"@babel/core": "^7.29.0",
 		"@eslint/js": "^9.39.4",
+		"@preact/signals-react-transform": "^0.8.1",
 		"@rolldown/plugin-babel": "^0.2.3",
 		"@stylexjs/unplugin": "^0.18.3",
 		"@types/babel__core": "^7.20.5",

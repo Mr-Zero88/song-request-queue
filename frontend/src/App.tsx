@@ -1,25 +1,46 @@
-import { useState } from "react";
+import { addToQueue, queues, session } from "@/api/api.ts";
+import Login from "@/components/login";
+import Queue from "@/components/queue";
+
 import * as stylex from "@stylexjs/stylex";
-import Button from "@/components/primitives/button.tsx";
+import { layout, colors } from "./vars.stylex.ts";
+import ClipboardButton from "./components/clipboardButton.tsx";
 
-//const styles = stylex.create({
-//	header: {
-//		color: "red",
-//	},
-//});
+const styles = stylex.create({
+	root: {
+		margin: 0,
+		padding: 0,
+		backgroundColor: colors.background,
+		minHeight: "100vh",
+		width: "100%",
+	},
+	queues: {
+		maxWidth: layout.contentMaxWidth,
+		margin: "auto",
+	},
+});
 
-import { session } from "@/api/api.ts";
-import Login from "./components/login";
-import { useSignals, useComputed } from "@preact/signals-react/runtime";
+let f = (link: string) => {
+	const requestQueue = queues.value.find(
+		(q) => q.value.name == "Request Queue",
+	);
+	if (requestQueue) {
+		addToQueue(requestQueue.value.id, link);
+	}
+};
 
 function App() {
-	const isLoggedIn = useComputed(() => session.value != null);
-
-	console.log(isLoggedIn.value, session.value);
 	return (
-		<div>
-			{isLoggedIn.value ? (
-				<Button>Hello</Button>
+		<div {...stylex.props(styles.root)}>
+			<ClipboardButton onValueChange={f}>
+				Request Link From Clipboard
+			</ClipboardButton>
+			{session.value != null ? (
+				queues.value.map((queue, key) => (
+					<div key={key + queue.value.id} {...stylex.props(styles.queues)}>
+						<Queue key={key + queue.value.id} queue={queue} />
+					</div>
+				))
 			) : (
 				<>
 					<Login />
