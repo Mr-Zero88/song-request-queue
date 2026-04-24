@@ -21,13 +21,14 @@ const styles = stylex.create({
 	},
 	queueElement: {
 		display: "flex",
+		gap: "1rem",
 		alignItems: "center",
 		margin: "1.4rem 0.5rem",
 	},
 	queueElementDesc: {
-		margin: "1rem 0.5rem 1rem 2rem",
 		display: "flex",
 		flexDirection: "column",
+		justifyContent: "center",
 	},
 	queueElementDescTitle: {
 		color: colors.primaryText,
@@ -36,6 +37,7 @@ const styles = stylex.create({
 	},
 	queueElementDescAuthor: {
 		color: colors.primaryText,
+		fontSize: fontSizes.md,
 	},
 	queueTitle: {
 		color: colors.primaryText,
@@ -134,7 +136,10 @@ export default function Queue({
 		playbackQueue &&
 		queue.value.id !== PLAYBACK_QUEUE_ID
 			? async (element: QueueItem) => {
-					const addError = await addToQueue(playbackQueue.value.id, element.link);
+					const addError = await addToQueue(
+						playbackQueue.value.id,
+						element.link,
+					);
 					if (addError) {
 						return addError;
 					}
@@ -145,7 +150,7 @@ export default function Queue({
 
 	return (
 		<ol {...rest} {...stylex.props(styles.root)}>
-			<h1 {...stylex.props(styles.queueTitle)}>{queue.value.name}</h1>
+			<h3 {...stylex.props(styles.queueTitle)}>{queue.value.name}</h3>
 			{queue.value.songs.map((element) => (
 				<QueueSongItem
 					key={element.id}
