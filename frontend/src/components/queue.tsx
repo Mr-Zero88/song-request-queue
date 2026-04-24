@@ -1,3 +1,4 @@
+import { addToQueue, queues, removeFromQueue } from "@/api/api.ts";
 import {
 	getVideoMetadata,
 	getYouTubeVideoId,
@@ -12,13 +13,15 @@ import { colors, fontSizes } from "../vars.stylex.ts";
 import type { Queue, QueueItem } from "song-request-queue-common/types/queue";
 import YoutubeThumbnail from "./youtubeThumbnail.tsx";
 
+const PLAYBACK_QUEUE_ID = "playback";
+
 const styles = stylex.create({
 	root: {
 		listStyleType: "none",
 	},
 	queueElement: {
 		display: "flex",
-		justifyItems: "space-between",
+		alignItems: "center",
 		margin: "1.4rem 0.5rem",
 	},
 	queueElementDesc: {
@@ -37,6 +40,15 @@ const styles = stylex.create({
 	queueTitle: {
 		color: colors.primaryText,
 	},
+	moveButton: {
+		marginLeft: "auto",
+		padding: "0.4rem 0.8rem",
+		borderStyle: "solid",
+		borderRadius: "0.4rem",
+		backgroundColor: colors.primaryText,
+		color: colors.background,
+		cursor: "pointer",
+	},
 });
 
 export interface QueueElement {
@@ -46,14 +58,17 @@ export interface QueueElement {
 
 type QueueProps = React.HTMLAttributes<HTMLOListElement> & {
 	queue: Signal<Queue>;
+	showMoveToPlaybackButton?: boolean;
 };
 
 type QueueSongItemProps = {
 	element: QueueItem;
+	onMoveToPlayback?: (element: QueueItem) => Promise<Error | null>;
 };
 
-function QueueSongItem({ element }: QueueSongItemProps) {
+function QueueSongItem({ element, onMoveToPlayback }: QueueSongItemProps) {
 	const metadata = useSignal<NoEmbedResponse | null>(null);
+	const isMoving = useSignal(false);
 
 	useEffect(() => {
 		const videoId = getYouTubeVideoId(element.link);
@@ -68,6 +83,19 @@ function QueueSongItem({ element }: QueueSongItemProps) {
 		});
 	}, [element.link, metadata]);
 
+	const handleMoveToPlayback = async () => {
+		if (!onMoveToPlayback || isMoving.value) {
+			return;
+		}
+
+		isMoving.value = true;
+		try {
+			await onMoveToPlayback(element);
+		} finally {
+			isMoving.value = false;
+		}
+	};
+
 	return (
 		<li {...stylex.props(styles.queueElement)}>
 			<YoutubeThumbnail youtubeURL={element.link} />
@@ -79,16 +107,51 @@ function QueueSongItem({ element }: QueueSongItemProps) {
 					{metadata.value?.author_name}
 				</p>
 			</div>
+			{onMoveToPlayback ? (
+				<button
+					type="button"
+					disabled={isMoving.value}
+					onClick={() => void handleMoveToPlayback()}
+					{...stylex.props(styles.moveButton)}
+				>
+					{isMoving.value ? "Adding..." : "Move to Playback"}
+				</button>
+			) : null}
 		</li>
 	);
 }
 
-export default function Queue({ queue, ...rest }: QueueProps) {
+export default function Queue({
+	queue,
+	showMoveToPlaybackButton = false,
+	...rest
+}: QueueProps) {
+	const playbackQueue = queues.value.find(
+		(candidate) => candidate.value.id === PLAYBACK_QUEUE_ID,
+	);
+	const onMoveToPlayback =
+		showMoveToPlaybackButton &&
+		playbackQueue &&
+		queue.value.id !== PLAYBACK_QUEUE_ID
+			? async (element: QueueItem) => {
+					const addError = await addToQueue(playbackQueue.value.id, element.link);
+					if (addError) {
+						return addError;
+					}
+
+					return removeFromQueue(queue.value.id, element.link);
+				}
+			: undefined;
+
 	return (
 		<ol {...rest} {...stylex.props(styles.root)}>
 			<h1 {...stylex.props(styles.queueTitle)}>{queue.value.name}</h1>
 			{queue.value.songs.map((element) => (
-				<QueueSongItem key={element.id} element={element} />
+				<QueueSongItem
+					key={element.id}
+					element={element}
+					onMoveToPlayback={onMoveToPlayback}
+				/>
 			))}
 		</ol>
 	);

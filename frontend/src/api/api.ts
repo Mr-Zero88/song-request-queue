@@ -61,11 +61,22 @@ async function getQueue(id: string): Promise<Queue | null> {
 	}
 }
 
+const youtubeRegex =
+	/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|music\.youtube\.com)\/.+$/;
+
+function isYouTubeLink(url: string): boolean {
+	return youtubeRegex.test(url);
+}
+
 export async function addToQueue(
 	id: string,
 	link: string,
-): Promise<Queue | null> {
+): Promise<Error | null> {
 	let endpoint = `/api/queue/${id}`;
+
+	if (!isYouTubeLink(link)) {
+		return new Error("not a valid YouTube link");
+	}
 
 	let res = await fetch(endpoint, {
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -73,21 +84,32 @@ export async function addToQueue(
 		body: JSON.stringify({ link }),
 	});
 	if (!res.ok) {
-		return null;
+		return new Error("Error while adding Song to Queue");
 	}
 
-	const queue: Queue = await res.json();
-	const existingQueue = queues.value.find(
-		(queueSignal) => queueSignal.value.id === queue.id,
-	);
+	return null;
+}
 
-	if (existingQueue) {
-		existingQueue.value = queue;
-	} else {
-		queues.value = [...queues.value, signal(queue)];
+export async function removeFromQueue(
+	id: string,
+	link: string,
+): Promise<Error | null> {
+	let endpoint = `/api/queue/${id}`;
+
+	if (!isYouTubeLink(link)) {
+		return new Error("not a valid YouTube link");
 	}
 
-	return queue;
+	let res = await fetch(endpoint, {
+		headers: { Accept: "application/json", "Content-Type": "application/json" },
+		method: "DELETE",
+		body: JSON.stringify({ link }),
+	});
+	if (!res.ok) {
+		return new Error("Error while removing Song from Queue");
+	}
+
+	return null;
 }
 
 getSession().then((s) => (session.value = s));

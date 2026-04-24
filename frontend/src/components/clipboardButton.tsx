@@ -1,5 +1,5 @@
 import { useState, type ButtonHTMLAttributes } from "react";
-import ConfirmPopup from "./confirmPopup";
+import ConfirmPopup from "@/components/confirmPopup";
 
 type ClipboardButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 	onValueChange?: (value: string) => void;
@@ -29,7 +29,7 @@ export default function ClipboardButton({
 
 		onValueChange?.(value);
 
-		await navigator.clipboard.writeText(""); // clear clipboard
+		await navigator.clipboard.writeText("");
 	};
 
 	return (
