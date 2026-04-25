@@ -8,6 +8,7 @@ import { colors, fontSizes, radius } from "../vars.stylex.ts";
 
 const styles = stylex.create({
 	button: {
+		cursor: "pointer",
 		fontSize: fontSizes.xxl,
 		margin: "auto",
 		color: colors.background,

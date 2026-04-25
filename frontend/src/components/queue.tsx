@@ -42,14 +42,25 @@ const styles = stylex.create({
 	queueTitle: {
 		color: colors.primaryText,
 	},
-	moveButton: {
+	actionButtons: {
 		marginLeft: "auto",
+		display: "flex",
+		gap: "0.75rem",
+	},
+	button: {
 		padding: "0.4rem 0.8rem",
 		borderStyle: "solid",
 		borderRadius: "0.4rem",
+		cursor: "pointer",
+	},
+	moveButton: {
 		backgroundColor: colors.primaryText,
 		color: colors.background,
-		cursor: "pointer",
+	},
+	removeButton: {
+		backgroundColor: colors.background,
+		borderColor: colors.primaryText,
+		color: colors.primaryText,
 	},
 });
 
@@ -61,16 +72,23 @@ export interface QueueElement {
 type QueueProps = React.HTMLAttributes<HTMLOListElement> & {
 	queue: Signal<Queue>;
 	showMoveToPlaybackButton?: boolean;
+	showRemoveButton?: boolean;
 };
 
 type QueueSongItemProps = {
 	element: QueueItem;
 	onMoveToPlayback?: (element: QueueItem) => Promise<Error | null>;
+	onRemove?: (element: QueueItem) => Promise<Error | null>;
 };
 
-function QueueSongItem({ element, onMoveToPlayback }: QueueSongItemProps) {
+function QueueSongItem({
+	element,
+	onMoveToPlayback,
+	onRemove,
+}: QueueSongItemProps) {
 	const metadata = useSignal<NoEmbedResponse | null>(null);
 	const isMoving = useSignal(false);
+	const isRemoving = useSignal(false);
 
 	useEffect(() => {
 		const videoId = getYouTubeVideoId(element.link);
@@ -98,6 +116,19 @@ function QueueSongItem({ element, onMoveToPlayback }: QueueSongItemProps) {
 		}
 	};
 
+	const handleRemove = async () => {
+		if (!onRemove || isRemoving.value) {
+			return;
+		}
+
+		isRemoving.value = true;
+		try {
+			await onRemove(element);
+		} finally {
+			isRemoving.value = false;
+		}
+	};
+
 	return (
 		<li {...stylex.props(styles.queueElement)}>
 			<YoutubeThumbnail youtubeURL={element.link} />
@@ -109,15 +140,29 @@ function QueueSongItem({ element, onMoveToPlayback }: QueueSongItemProps) {
 					{metadata.value?.author_name}
 				</p>
 			</div>
-			{onMoveToPlayback ? (
-				<button
-					type="button"
-					disabled={isMoving.value}
-					onClick={() => void handleMoveToPlayback()}
-					{...stylex.props(styles.moveButton)}
-				>
-					{isMoving.value ? "Adding..." : "Move to Playback"}
-				</button>
+			{onMoveToPlayback || onRemove ? (
+				<div {...stylex.props(styles.actionButtons)}>
+					{onMoveToPlayback ? (
+						<button
+							type="button"
+							disabled={isMoving.value || isRemoving.value}
+							onClick={() => void handleMoveToPlayback()}
+							{...stylex.props(styles.button, styles.moveButton)}
+						>
+							{isMoving.value ? "Adding..." : "Move to Playback"}
+						</button>
+					) : null}
+					{onRemove ? (
+						<button
+							type="button"
+							disabled={isMoving.value || isRemoving.value}
+							onClick={() => void handleRemove()}
+							{...stylex.props(styles.button, styles.removeButton)}
+						>
+							{isRemoving.value ? "Removing..." : "Remove"}
+						</button>
+					) : null}
+				</div>
 			) : null}
 		</li>
 	);
@@ -126,6 +171,7 @@ function QueueSongItem({ element, onMoveToPlayback }: QueueSongItemProps) {
 export default function Queue({
 	queue,
 	showMoveToPlaybackButton = false,
+	showRemoveButton = false,
 	...rest
 }: QueueProps) {
 	const playbackQueue = queues.value.find(
@@ -147,6 +193,9 @@ export default function Queue({
 					return removeFromQueue(queue.value.id, element.link);
 				}
 			: undefined;
+	const onRemove = showRemoveButton
+		? async (element: QueueItem) => removeFromQueue(queue.value.id, element.link)
+		: undefined;
 
 	return (
 		<ol {...rest} {...stylex.props(styles.root)}>
@@ -156,6 +205,7 @@ export default function Queue({
 					key={element.id}
 					element={element}
 					onMoveToPlayback={onMoveToPlayback}
+					onRemove={onRemove}
 				/>
 			))}
 		</ol>

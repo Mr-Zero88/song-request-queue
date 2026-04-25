@@ -20,3 +20,11 @@ export interface AddToQueueRequestBody {
 export interface AddToQueueRequestParams {
     id: string;
 }
+
+export interface RemoveFromQueueRequestBody {
+    link: string;
+}
+
+export interface RemoveFromQueueRequestParams {
+    id: string;
+}

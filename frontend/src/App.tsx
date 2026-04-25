@@ -6,6 +6,8 @@ import { layout } from "./vars.stylex.ts";
 import User from "./components/user.tsx";
 import Admin from "./components/admin.tsx";
 
+const ADMIN_USERNAME = "mr.zero88";
+
 const styles = stylex.create({
 	root: {
 		maxWidth: layout.contentMaxWidth,
@@ -19,7 +21,7 @@ function App() {
 	return (
 		<div {...stylex.props(styles.root)}>
 			{session.value != null ? (
-				session.value.username === "mr.zero88" ? (
+				session.value.username === ADMIN_USERNAME ? (
 					<Admin />
 				) : (
 					<User />

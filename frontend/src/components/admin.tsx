@@ -6,9 +6,12 @@ import Queue from "@/components/queue";
 import * as stylex from "@stylexjs/stylex";
 import { colors, fontSizes, radius } from "../vars.stylex.ts";
 
+const REQUEST_QUEUE_NAME = "Request Queue";
+
 const styles = stylex.create({
 	queues: {},
 	button: {
+		cursor: "pointer",
 		fontSize: fontSizes.xxl,
 		margin: "auto",
 		color: colors.background,
@@ -21,7 +24,7 @@ const styles = stylex.create({
 
 const requestLink = (link: string) => {
 	const requestQueue = queues.value.find(
-		(q) => q.value.name == "Request Queue",
+		(q) => q.value.name === REQUEST_QUEUE_NAME,
 	);
 	if (requestQueue) {
 		void addToQueue(requestQueue.value.id, link);
@@ -46,6 +49,7 @@ export default function Admin() {
 						key={key + queue.value.id}
 						queue={queue}
 						showMoveToPlaybackButton
+						showRemoveButton={queue.value.name === REQUEST_QUEUE_NAME}
 					/>
 				</div>
 			))}
