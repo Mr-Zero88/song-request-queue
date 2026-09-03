@@ -1,7 +1,7 @@
 import { addToQueue, queues } from "@/api/api.ts";
 import ClipboardButton from "@/components/clipboardButton.tsx";
 import NowPlaying from "@/components/nowPlaying.tsx";
-import Queue from "@/components/queue";
+import Queue, { PLAYBACK_QUEUE_ID } from "@/components/queue";
 
 import * as stylex from "@stylexjs/stylex";
 import { colors, fontSizes, radius } from "../vars.stylex.ts";
@@ -40,9 +40,12 @@ export default function User() {
 			</ClipboardButton>
 
 			{queues.value.map((queue, key) => (
-				<div key={key + queue.value.id}>
-					<Queue key={key + queue.value.id} queue={queue} />
-				</div>
+				queue.value.id !== PLAYBACK_QUEUE_ID ? (
+
+					<div key={key + queue.value.id}>
+						<Queue key={key + queue.value.id} queue={queue} />
+					</div>
+				) : null
 			))}
 		</>
 	);
