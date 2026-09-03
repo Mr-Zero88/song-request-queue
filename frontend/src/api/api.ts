@@ -2,9 +2,6 @@ import type { Session } from "song-request-queue-common/types/session";
 import { Signal, signal } from "@preact/signals-react";
 import type { Queue } from "song-request-queue-common/types/queue";
 
-export const session = signal<Session | null>(null);
-getSession().then((s) => (session.value = s));
-
 async function getSession(): Promise<Session | null> {
 	let endpoint = "/api/session";
 
@@ -30,8 +27,6 @@ export async function createSession(username: string): Promise<Session | null> {
 		return await res.json();
 	}
 }
-
-export const queues = signal<Signal<Queue>[]>([]);
 
 async function getQueues(): Promise<Queue[]> {
 	let endpoint = "/api/queues";
@@ -112,7 +107,10 @@ export async function removeFromQueue(
 	return null;
 }
 
+export const session = signal<Session | null>(null);
 getSession().then((s) => (session.value = s));
+
+export const queues = signal<Signal<Queue>[]>([]);
 getQueues().then(
 	(q) =>
 		(queues.value = q.map((qq) => {
