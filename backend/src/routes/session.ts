@@ -12,7 +12,7 @@ router.delete('/', handleSession, deleteSession);
 
 export async function createSession(req: Request<null, Session, {username: string}>) {
     let session = await controllers.createSession(req.body?.username).catch(handleError);
-    if(session instanceof Error) return req.next();
+    if(session instanceof Error) return req.next(session);
     req.res.cookie('sessionId', session.id, { httpOnly: true });
     req.res.status(200).json(session);
 }
