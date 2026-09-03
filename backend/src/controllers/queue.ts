@@ -9,6 +9,7 @@ export const getQueues: () => Promise<Queue[]> = async () => {
 };
 
 export const getQueue: (id: string) => Promise<Queue> = async (id) => {
+	console.log(`getQueue(id: ${id})`);
 	var queue = await getQueues().then((queues) =>
 		queues.find((queue) => queue.id === id),
 	);
@@ -20,8 +21,10 @@ export const addToQueue: (id: string, link: string) => Promise<Queue> = async (
 	id,
 	link,
 ) => {
+	console.log(`addToQueue(id: ${id}, link: ${link})`);
 	let queue = await getQueue(id);
-	queue.songs.push({ id: generateId(), link });
+	// queue.songs.push({ id: generateId(), link });
+	queue.songs = [...queue.songs, { id: generateId(), link }];
 	return queue;
 };
 
@@ -29,11 +32,12 @@ export const removeFromQueue: (
 	id: string,
 	link: string,
 ) => Promise<Queue> = async (id, link) => {
+	console.log(`removeFromQueue(id: ${id}, link: ${link})`);
 	let queue = await getQueue(id);
 	let songIndex = queue.songs.findIndex((song) => song.link === link);
 	if (songIndex === -1) throw new QueueSongNotFoundError(link);
 
-	queue.songs.splice(songIndex, 1);
+	queue.songs = queue.songs.toSpliced(songIndex, 1);
 	return queue;
 };
 
