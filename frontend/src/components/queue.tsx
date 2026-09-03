@@ -13,7 +13,7 @@ import { colors, fontSizes } from "../vars.stylex.ts";
 import type { Queue, QueueItem } from "song-request-queue-common/types/queue";
 import YoutubeThumbnail from "./youtubeThumbnail.tsx";
 
-const PLAYBACK_QUEUE_ID = "playback";
+export const PLAYBACK_QUEUE_ID = "playback";
 
 const styles = stylex.create({
 	root: {
@@ -187,10 +187,14 @@ export default function Queue({
 						element.link,
 					);
 					if (addError) {
+						console.error(`Error while moving song to playback queue: ${addError.message}`);
 						return addError;
 					}
-
-					return removeFromQueue(queue.value.id, element.link);
+					const removeError = await removeFromQueue(queue.value.id, queue.value.songs[0].link);
+					if (removeError) {
+						console.error(`Error while removing song from request queue: ${removeError.message}`);
+						return removeError;
+					}
 				}
 			: undefined;
 	const onRemove = showRemoveButton
