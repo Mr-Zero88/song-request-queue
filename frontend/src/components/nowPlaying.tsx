@@ -87,7 +87,7 @@ export default function NowPlaying() {
 	const playbackQueue = queues.value.find(
 		(queue) => queue.value.id === PLAYBACK_QUEUE_ID,
 	);
-	const currentSong = playbackQueue?.value.songs[0];
+	const currentSong = playbackQueue?.value.songs[playbackQueue?.value.songs.length - 1];
 
 	return (
 		<section {...stylex.props(styles.root)}>
