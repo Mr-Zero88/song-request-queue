@@ -48,13 +48,19 @@ export class ArrayJson<T> extends Array<T> {
 }
 
 function wrapSetter<T extends Object | Array<any>>(object: T, path: string, setter: (path: string) => void): T {
-    console.log(`wrapSetter called for path: ${path}`);
+    // console.log(`wrapSetter called for path: ${path}`);
+    if(typeof object !== 'object' || object === null) {
+        console.warn(`wrapSetter called for non-object at path: ${path}`);
+        return object;
+    }
     let wrapedEntries: T = {} as T;
     return new Proxy(object, {
         set: (target, property, value) => {
             setter(`${path}.${String(property)}`);
             target[property as keyof T] = value;
-            wrapedEntries[property as keyof typeof wrapedEntries] = wrapSetter(value, `${path}.${String(property)}`, setter);
+            if(typeof value == 'object' && property != null) {
+                wrapedEntries[property as keyof typeof wrapedEntries] = wrapSetter(value, `${path}.${String(property)}`, setter);
+            }
             return true;
         },
         get: (target, property) => {
@@ -62,10 +68,8 @@ function wrapSetter<T extends Object | Array<any>>(object: T, path: string, sett
             if(property != 'ready' && typeof targetValue == 'object' && property != null) {
                 let value = wrapedEntries[property as keyof typeof wrapedEntries] as Object | Array<any>;
                 if (value == null) {
-                    if (value == null) {
-                        value = wrapSetter(targetValue, `${path}.${String(property)}`, setter);
-                        wrapedEntries[property as keyof typeof wrapedEntries] = value as T[keyof T];
-                    }
+                    value = wrapSetter(targetValue, `${path}.${String(property)}`, setter);
+                    wrapedEntries[property as keyof typeof wrapedEntries] = value as T[keyof T];
                 }
                 return value;
             }
