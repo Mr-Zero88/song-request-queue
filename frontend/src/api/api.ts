@@ -1,6 +1,7 @@
 import type { Session } from "song-request-queue-common/types/session";
 import { Signal, signal } from "@preact/signals-react";
 import type { Queue, VoteDirection } from "song-request-queue-common/types/queue";
+import { isKioskRoute } from "@/appView.ts";
 
 // tracks whether the backend is reachable at all (network failure, or the
 // dev/reverse proxy reporting the upstream is down), as opposed to a normal
@@ -133,12 +134,41 @@ export async function addToQueue(
 	return null;
 }
 
+// The API records every vote against a username, but the kiosk is a shared
+// screen with nobody signed in. Give the device a stable identity so its votes
+// register at all. Consequence: the kiosk counts as a single voter, so a second
+// tap on the same arrow retracts the first person's vote.
+const KIOSK_VOTER_KEY = "kioskVoterId";
+
+function kioskVoterId(): string {
+	let id = localStorage.getItem(KIOSK_VOTER_KEY);
+	if (!id) {
+		id = `kiosk-${Math.random().toString(36).slice(2, 10)}`;
+		localStorage.setItem(KIOSK_VOTER_KEY, id);
+	}
+	return id;
+}
+
+// Who a vote is attributed to. On the kiosk this is always the device, even if
+// a session cookie happens to linger on that machine — a shared screen must not
+// cast votes as whoever last signed in on it.
+export function voterName(): string | null {
+	if (isKioskRoute()) return kioskVoterId();
+	return session.value?.username ?? null;
+}
+
+// Who the interface treats as "you" for attribution. Nobody owns anything on a
+// shared screen, so the kiosk shows every request under its requester's name.
+export function displayName(): string | null {
+	return isKioskRoute() ? null : (session.value?.username ?? null);
+}
+
 export async function voteOnSong(
 	id: string,
 	link: string,
 	direction: VoteDirection,
 ): Promise<Error | null> {
-	const username = session.value?.username;
+	const username = voterName();
 	if (!username) {
 		return new Error("Must be logged in to vote");
 	}

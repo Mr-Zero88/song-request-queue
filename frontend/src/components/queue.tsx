@@ -1,4 +1,11 @@
-import { addToQueue, queues, removeFromQueue, session, voteOnSong } from "@/api/api.ts";
+import {
+	addToQueue,
+	displayName,
+	queues,
+	removeFromQueue,
+	voterName,
+	voteOnSong,
+} from "@/api/api.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import { useSignal, type Signal } from "@preact/signals-react";
 import * as stylex from "@stylexjs/stylex";
@@ -234,7 +241,10 @@ function QueueSongItem({
 	const isVoting = useSignal(false);
 	const voteError = useSignal<string | null>(null);
 	const confirmingRemove = useSignal(false);
-	const username = session.value?.username;
+	const username = displayName();
+	// Attribution and voting identity differ on the kiosk: requests made there
+	// are anonymous, but votes still need someone to hang on.
+	const voter = voterName();
 	const isOwnRequest =
 		element.requestedBy != null && element.requestedBy === username;
 	const addedByLabel = isOwnRequest ? "You" : (element.requestedBy ?? null);
@@ -249,14 +259,14 @@ function QueueSongItem({
 				? styles.voteCountNegative
 				: null;
 	const userVote: "up" | "down" | null =
-		username && element.upvotes?.includes(username)
+		voter && element.upvotes?.includes(voter)
 			? "up"
-			: username && element.downvotes?.includes(username)
+			: voter && element.downvotes?.includes(voter)
 				? "down"
 				: null;
 
 	const handleVote = async (direction: "up" | "down") => {
-		if (!onVote || !username || isVoting.value) return;
+		if (!onVote || !voter || isVoting.value) return;
 
 		isVoting.value = true;
 		voteError.value = null;

@@ -1,7 +1,8 @@
 import { QRCodeSVG } from "qrcode.react";
-import { useSignal } from "@preact/signals-react";
 import * as stylex from "@stylexjs/stylex";
-import { QrCode } from "lucide-react";
+import { Smartphone } from "lucide-react";
+
+import { useSignal } from "@preact/signals-react";
 
 import { addToQueue, queues } from "@/api/api.ts";
 import ActionError, { actionError } from "@/components/actionError.tsx";
@@ -11,15 +12,17 @@ import NowPlaying from "@/components/nowPlaying.tsx";
 import Queue from "@/components/queue.tsx";
 import QueueClosedBanner from "@/components/queueClosedBanner.tsx";
 import SearchBar from "@/components/searchBar.tsx";
-import Button from "@/components/ui/button.tsx";
-import Modal from "@/components/ui/modal.tsx";
+import ConfirmPopup from "@/components/confirmPopup.tsx";
+import Card from "@/components/ui/card.tsx";
 import {
 	MOCK_QUEUE_CLOSED,
 	PLAYBACK_QUEUE_ID,
 	REQUEST_QUEUE_NAME,
 } from "@/constants.ts";
 
-import { colors, fontSizes, fontWeights, space } from "../vars.stylex.ts";
+import { colors, fontSizes, fontWeights, radius, space } from "../vars.stylex.ts";
+
+const NARROW = "@media (max-width: 639px)";
 
 const styles = stylex.create({
 	root: {
@@ -27,25 +30,50 @@ const styles = stylex.create({
 		flexDirection: "column",
 		gap: space.md,
 	},
-	// Sits where the guest view puts its greeting and log-out button. The kiosk
-	// is a shared screen, so it has neither — the way in is the QR code.
-	header: {
+	// A kiosk is read from across the room, so the join code is always on
+	// screen rather than hidden behind a button nobody walks over to press.
+	hero: {
 		display: "flex",
-		justifyContent: "flex-end",
+		flexDirection: { default: "row", [NARROW]: "column" },
 		alignItems: "center",
-		marginBottom: space.md,
+		justifyContent: "space-between",
+		gap: space.lg,
 	},
-	qrModal: {
+	heroText: {
 		display: "flex",
 		flexDirection: "column",
-		alignItems: "center",
-		gap: space.md,
+		gap: space.xs,
+		minWidth: 0,
 	},
-	qrLabel: {
+	heroTitle: {
 		color: colors.primaryText,
-		fontSize: fontSizes.lg,
-		fontWeight: fontWeights.semibold,
+		fontSize: { default: fontSizes.xxl, [NARROW]: fontSizes.lg },
+		fontWeight: fontWeights.bold,
 		margin: 0,
+	},
+	heroSubtitle: {
+		display: "flex",
+		alignItems: "center",
+		gap: space.xs,
+		color: colors.secondaryText,
+		fontSize: fontSizes.md,
+		margin: 0,
+	},
+	joinUrl: {
+		color: colors.accent,
+		fontSize: fontSizes.sm,
+		fontWeight: fontWeights.semibold,
+		wordBreak: "break-all",
+	},
+	// The code keeps its own light plate and quiet zone; scanners need the
+	// contrast, and in dark mode the card behind it is nearly black.
+	qrPlate: {
+		display: "flex",
+		flexShrink: 0,
+		borderRadius: radius.md,
+		backgroundColor: "#ffffff",
+		padding: space.sm,
+		lineHeight: 0,
 	},
 });
 
@@ -68,41 +96,67 @@ const requestLink = async (link: string) => {
 	}
 };
 
-function JoinQrButton() {
-	const open = useSignal(false);
+function JoinHero() {
 	const joinUrl = `${window.location.origin}/`;
+	const joinLabel = joinUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
 	return (
-		<>
-			<Button variant="secondary" onClick={() => (open.value = true)}>
-				<QrCode size={16} />
-				Scan to join on your phone
-			</Button>
-
-			<Modal open={open.value} onClose={() => (open.value = false)}>
-				<div {...stylex.props(styles.qrModal)}>
-					<QRCodeSVG value={joinUrl} size={320} />
-					<p {...stylex.props(styles.qrLabel)}>Scan to join</p>
+		<Card>
+			<div {...stylex.props(styles.hero)}>
+				<div {...stylex.props(styles.heroText)}>
+					<h1 {...stylex.props(styles.heroTitle)}>Request your favorite songs</h1>
+					<p {...stylex.props(styles.heroSubtitle)}>
+						<Smartphone size={16} />
+						Scan the code to add a song from your phone
+					</p>
+					<span {...stylex.props(styles.joinUrl)}>{joinLabel}</span>
 				</div>
-			</Modal>
-		</>
+
+				<div {...stylex.props(styles.qrPlate)}>
+					{/* marginSize is in modules: the spec asks for a 4-module quiet
+					    zone, and padding on the plate alone gave only 1.4. size is
+					    raised to match so the code itself does not shrink. */}
+					<QRCodeSVG
+						value={joinUrl}
+						size={192}
+						level="M"
+						marginSize={4}
+						bgColor="#ffffff"
+						fgColor="#000000"
+					/>
+				</div>
+			</div>
+		</Card>
 	);
 }
 
 export default function Kiosk() {
+	// A guest at the kiosk has no session, so there is no "your requests" list
+	// and no way to take a song back out. Confirm before it goes in.
+	const pendingLink = useSignal<string | null>(null);
+
 	return (
 		<div {...stylex.props(styles.root)}>
-			<div {...stylex.props(styles.header)}>
-				<JoinQrButton />
-			</div>
+			<JoinHero />
 
 			<ActionError />
 
 			{MOCK_QUEUE_CLOSED ? (
 				<QueueClosedBanner />
 			) : (
-				<SearchBar onSelect={(link) => void requestLink(link)} />
+				<SearchBar onSelect={(link) => (pendingLink.value = link)} />
 			)}
+
+			<ConfirmPopup
+				open={pendingLink.value != null}
+				message="Add this song to the queue? You can't take it back from the kiosk afterwards."
+				onCancel={() => (pendingLink.value = null)}
+				onConfirm={() => {
+					const link = pendingLink.value;
+					pendingLink.value = null;
+					if (link) void requestLink(link);
+				}}
+			/>
 
 			<NowPlaying />
 
@@ -111,9 +165,7 @@ export default function Kiosk() {
 					<Queue
 						key={queue.value.id}
 						queue={queue}
-						// Scores are shown, but not the buttons: voting is tied to a
-						// username and the kiosk has no one signed in.
-						showVoteCount={queue.value.name === REQUEST_QUEUE_NAME}
+						showVoteButtons={queue.value.name === REQUEST_QUEUE_NAME}
 					/>
 				) : null,
 			)}

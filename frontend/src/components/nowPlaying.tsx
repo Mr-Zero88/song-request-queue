@@ -1,4 +1,4 @@
-import { queues, session } from "@/api/api.ts";
+import { displayName, queues } from "@/api/api.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import Card from "@/components/ui/card.tsx";
@@ -162,7 +162,7 @@ type CurrentPlaybackSongProps = {
 
 function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 	const metadata = useVideoMetadata(song.link);
-	const username = session.value?.username;
+	const username = displayName();
 	const isOwnRequest = song.requestedBy != null && song.requestedBy === username;
 	const requesterLabel = isOwnRequest ? "You" : (song.requestedBy ?? null);
 	const netVotes = (song.upvotes?.length ?? 0) - (song.downvotes?.length ?? 0);
