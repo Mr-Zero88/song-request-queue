@@ -1,6 +1,5 @@
 import { queues, session } from "@/api/api.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
-import { useElapsedTime } from "@/hooks/useElapsedTime.ts";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import Card from "@/components/ui/card.tsx";
 import EmptyState from "@/components/ui/emptyState.tsx";
@@ -10,9 +9,11 @@ import { Radio } from "lucide-react";
 
 import { colors, fontSizes, fontWeights, space } from "../vars.stylex.ts";
 import { PLAYBACK_QUEUE_ID } from "../constants.ts";
-import { formatDuration, getMockDurationSeconds } from "@/utils/duration.ts";
 
 import type { QueueItem } from "song-request-queue-common/types/queue";
+
+const NARROW = "@media (max-width: 639px)";
+const REDUCED_MOTION = "@media (prefers-reduced-motion: reduce)";
 
 const waveBounce = stylex.keyframes({
 	"0%, 100%": { transform: "scaleY(0.35)" },
@@ -54,16 +55,16 @@ const styles = stylex.create({
 		display: "flex",
 		alignItems: "center",
 		justifyContent: "center",
-		gap: space.sm,
+		gap: space.xl,
 	},
 	songTitle: {
 		display: "-webkit-box",
 		WebkitBoxOrient: "vertical",
-		WebkitLineClamp: 3,
+		WebkitLineClamp: { default: 3, [NARROW]: 2 },
 		overflow: "hidden",
 		width: "100%",
 		color: colors.primaryText,
-		fontSize: fontSizes.lg,
+		fontSize: { default: fontSizes.lg, [NARROW]: fontSizes.md },
 		fontWeight: fontWeights.bold,
 		lineHeight: 1.3,
 	},
@@ -87,9 +88,11 @@ const styles = stylex.create({
 		color: colors.secondaryText,
 		fontSize: fontSizes.sm,
 		minWidth: 0,
-		overflow: "hidden",
-		textOverflow: "ellipsis",
-		whiteSpace: "nowrap",
+		overflow: { default: "hidden", [NARROW]: "visible" },
+		// On a phone the single line truncates away the vote count itself, so
+		// let it wrap instead — the row is centred either way.
+		textOverflow: { default: "ellipsis", [NARROW]: "clip" },
+		whiteSpace: { default: "nowrap", [NARROW]: "normal" },
 	},
 	requestedByOwn: {
 		color: colors.accent,
@@ -114,6 +117,11 @@ const styles = stylex.create({
 		height: "1.75rem",
 		flex: 1,
 		minWidth: 0,
+		// Without the time labels beside it the bars would spread across the whole
+		// card and read as sparse rather than as a waveform.
+		maxWidth: "26rem",
+		marginLeft: "auto",
+		marginRight: "auto",
 	},
 	waveformBar: {
 		display: "block",
@@ -124,7 +132,7 @@ const styles = stylex.create({
 		animationName: waveBounce,
 		animationDuration: "1.1s",
 		animationTimingFunction: "ease-in-out",
-		animationIterationCount: "infinite",
+		animationIterationCount: { default: "infinite", [REDUCED_MOTION]: 0 },
 	},
 });
 
@@ -158,8 +166,6 @@ function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 	const isOwnRequest = song.requestedBy != null && song.requestedBy === username;
 	const requesterLabel = isOwnRequest ? "You" : (song.requestedBy ?? null);
 	const netVotes = (song.upvotes?.length ?? 0) - (song.downvotes?.length ?? 0);
-	const totalSeconds = getMockDurationSeconds(song.id);
-	const elapsed = useElapsedTime(song.startedAt) ?? "0:00";
 	const voteCountStyle =
 		netVotes > 0
 			? styles.voteCountPositive
@@ -169,7 +175,12 @@ function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 
 	return (
 		<div {...stylex.props(styles.wrapper)}>
-			<a {...stylex.props(styles.songTitle)} href={song.link}>
+			<a
+				{...stylex.props(styles.songTitle)}
+				href={song.link}
+				target="_blank"
+				rel="noopener noreferrer"
+			>
 				{metadata.value?.title ?? <LoadingSpinner size={16} />}
 			</a>
 			<p {...stylex.props(styles.author)}>{metadata.value?.author_name}</p>
@@ -181,10 +192,10 @@ function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 					size={hero ? "compactHero" : "compact"}
 				/>
 				<div {...stylex.props(styles.progressCol)}>
+					{/* No track length is available, so the waveform stands alone rather
+					    than framing invented timestamps. */}
 					<div {...stylex.props(styles.progressLine)}>
-						<span {...stylex.props(styles.time)}>{elapsed}</span>
 						<PlayingWaveform />
-						<span {...stylex.props(styles.time)}>{formatDuration(totalSeconds)}</span>
 					</div>
 
 					<div {...stylex.props(styles.metaRow)}>
@@ -194,11 +205,11 @@ function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 								isOwnRequest ? styles.requestedByOwn : null,
 							)}
 						>
-							{requesterLabel ? `Requested by ${requesterLabel} with ` : "With "}
+							{requesterLabel ? `Requested by ${requesterLabel} \u00b7 ` : ""}
 							<span {...stylex.props(styles.voteCount, voteCountStyle)}>
 								{netVotes}
 							</span>{" "}
-							votes
+							{Math.abs(netVotes) === 1 ? "vote" : "votes"}
 						</span>
 					</div>
 				</div>

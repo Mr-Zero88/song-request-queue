@@ -6,7 +6,7 @@ import { ArrowBigDown, ArrowBigUp, ListMusic, Trash2, type LucideIcon } from "lu
 
 import { colors, fontSizes, fontWeights, radius, space } from "../vars.stylex.ts";
 import { PLAYBACK_QUEUE_ID } from "../constants.ts";
-import { formatDuration, getMockDurationSeconds } from "@/utils/duration.ts";
+import { UNKNOWN_DURATION } from "@/utils/duration.ts";
 
 import Button from "@/components/ui/button.tsx";
 import Card from "@/components/ui/card.tsx";
@@ -22,6 +22,10 @@ const NARROW = "@media (max-width: 639px)";
 // Only the last (actions) column is content-sized — since it's last, its
 // width never shifts the position/song/added-by/voting columns before it.
 const GRID_TEMPLATE = "2rem minmax(0, 1fr) 8.5rem 6rem 3.5rem auto";
+
+// On a phone the added-by and time columns collapse into the meta line under
+// the title, leaving just position / song / voting on one row.
+const GRID_TEMPLATE_NARROW = "1.5rem minmax(0, 1fr) auto";
 
 const styles = stylex.create({
 	root: {
@@ -71,12 +75,11 @@ const styles = stylex.create({
 	},
 
 	queueElement: {
-		display: { default: "grid", [NARROW]: "flex" },
-		gridTemplateColumns: GRID_TEMPLATE,
-		flexWrap: { default: "nowrap", [NARROW]: "wrap" },
+		display: "grid",
+		gridTemplateColumns: { default: GRID_TEMPLATE, [NARROW]: GRID_TEMPLATE_NARROW },
 		alignItems: "center",
-		gap: space.md,
-		padding: `${space.xs} 0`,
+		gap: { default: space.md, [NARROW]: space.sm },
+		padding: { default: `${space.xs} 0`, [NARROW]: `${space.sm} 0` },
 		borderBottomStyle: "solid",
 		borderBottomWidth: "1px",
 		borderBottomColor: colors.border,
@@ -90,7 +93,6 @@ const styles = stylex.create({
 		fontWeight: fontWeights.semibold,
 		textAlign: "center",
 		flexShrink: 0,
-		width: { default: "auto", [NARROW]: "1.5rem" },
 	},
 	song: {
 		display: "flex",
@@ -98,12 +100,21 @@ const styles = stylex.create({
 		justifyContent: "center",
 		gap: 0,
 		minWidth: 0,
-		flex: { default: "initial", [NARROW]: 1 },
 	},
 	songTitle: {
 		color: colors.primaryText,
 		fontSize: fontSizes.sm,
 		fontWeight: fontWeights.semibold,
+		// Long titles otherwise push the row to four or five lines on a phone.
+		display: { default: "block", [NARROW]: "-webkit-box" },
+		WebkitBoxOrient: "vertical",
+		WebkitLineClamp: { default: "none", [NARROW]: 2 },
+		overflow: { default: "visible", [NARROW]: "hidden" },
+	},
+	// Added-by and time live in their own grid columns on a wide screen; on a
+	// phone they ride along in the meta line instead of costing a row each.
+	metaExtra: {
+		display: { default: "none", [NARROW]: "inline" },
 	},
 	songAuthor: {
 		color: colors.secondaryText,
@@ -111,12 +122,11 @@ const styles = stylex.create({
 		margin: 0,
 	},
 	addedBy: {
-		display: "flex",
+		display: { default: "flex", [NARROW]: "none" },
 		alignItems: "center",
 		color: colors.secondaryText,
 		fontSize: fontSizes.xs,
 		minWidth: 0,
-		flexBasis: { default: "auto", [NARROW]: "100%" },
 	},
 	addedByOwn: {
 		color: colors.accent,
@@ -126,8 +136,8 @@ const styles = stylex.create({
 		display: "flex",
 		alignItems: "center",
 		justifyContent: "center",
+		flexWrap: "wrap",
 		gap: space.xs,
-		flexBasis: { default: "auto", [NARROW]: "100%" },
 	},
 	voteButton: {
 		display: "flex",
@@ -153,6 +163,12 @@ const styles = stylex.create({
 		minWidth: "1.25rem",
 		textAlign: "center",
 	},
+	voteError: {
+		color: colors.danger,
+		fontSize: fontSizes.xs,
+		flexBasis: "100%",
+		textAlign: "center",
+	},
 	voteCountPositive: {
 		color: colors.success,
 	},
@@ -160,24 +176,27 @@ const styles = stylex.create({
 		color: colors.danger,
 	},
 	time: {
-		display: "flex",
+		display: { default: "flex", [NARROW]: "none" },
 		alignItems: "center",
 		justifyContent: "center",
 		color: colors.secondaryText,
 		fontSize: fontSizes.xs,
 		fontVariantNumeric: "tabular-nums",
-		flexBasis: { default: "auto", [NARROW]: "100%" },
 	},
 	actions: {
 		display: "flex",
 		gap: space.sm,
 		flexShrink: 0,
-		flexBasis: { default: "auto", [NARROW]: "100%" },
+		gridColumn: { default: "auto", [NARROW]: "1 / -1" },
 	},
 	actionButton: {
 		flex: { default: "initial", [NARROW]: 1 },
 	},
-
+	// Keeps the desktop grid columns aligned when a row has no voting or
+	// actions; on a phone those columns don't exist, so it takes no space.
+	gridSpacer: {
+		display: { default: "block", [NARROW]: "none" },
+	},
 });
 
 type QueueProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -213,12 +232,16 @@ function QueueSongItem({
 	const isMoving = useSignal(false);
 	const isRemoving = useSignal(false);
 	const isVoting = useSignal(false);
+	const voteError = useSignal<string | null>(null);
 	const confirmingRemove = useSignal(false);
 	const username = session.value?.username;
 	const isOwnRequest =
 		element.requestedBy != null && element.requestedBy === username;
 	const addedByLabel = isOwnRequest ? "You" : (element.requestedBy ?? null);
 	const netVotes = (element.upvotes?.length ?? 0) - (element.downvotes?.length ?? 0);
+	// No duration source is wired up, so the column shows a dash rather than a
+	// number the guest would read as real.
+	const durationLabel: string | null = null;
 	const voteCountStyle =
 		netVotes > 0
 			? styles.voteCountPositive
@@ -236,8 +259,12 @@ function QueueSongItem({
 		if (!onVote || !username || isVoting.value) return;
 
 		isVoting.value = true;
+		voteError.value = null;
 		try {
-			await onVote(element, direction);
+			// A rejected vote otherwise looks exactly like a slow poll: the arrow
+			// simply never fills in and the user keeps tapping.
+			const error = await onVote(element, direction);
+			voteError.value = error ? error.message : null;
 		} finally {
 			isVoting.value = false;
 		}
@@ -274,10 +301,21 @@ function QueueSongItem({
 			<span {...stylex.props(styles.position)}>{position}</span>
 
 			<div {...stylex.props(styles.song)}>
-				<a {...stylex.props(styles.songTitle)} href={element.link}>
+				<a
+					{...stylex.props(styles.songTitle)}
+					href={element.link}
+					target="_blank"
+					rel="noopener noreferrer"
+				>
 					{metadata.value?.title ?? <LoadingSpinner size={14} />}
 				</a>
-				<p {...stylex.props(styles.songAuthor)}>{metadata.value?.author_name}</p>
+				<p {...stylex.props(styles.songAuthor)}>
+					{metadata.value?.author_name}
+					<span {...stylex.props(styles.metaExtra)}>
+						{addedByLabel ? ` \u00b7 ${addedByLabel}` : ""}
+						{durationLabel ? ` \u00b7 ${durationLabel}` : ""}
+					</span>
+				</p>
 			</div>
 
 			<span
@@ -291,6 +329,7 @@ function QueueSongItem({
 					<button
 						type="button"
 						aria-label="Upvote"
+						aria-pressed={userVote === "up"}
 						disabled={isVoting.value}
 						onClick={() => void handleVote("up")}
 						{...stylex.props(styles.voteButton, styles.voteButtonUp)}
@@ -301,24 +340,28 @@ function QueueSongItem({
 					<button
 						type="button"
 						aria-label="Downvote"
+						aria-pressed={userVote === "down"}
 						disabled={isVoting.value}
 						onClick={() => void handleVote("down")}
 						{...stylex.props(styles.voteButton, styles.voteButtonDown)}
 					>
 						<ArrowBigDown size={18} fill={userVote === "down" ? "currentColor" : "none"} />
 					</button>
+					{voteError.value ? (
+						<span role="alert" {...stylex.props(styles.voteError)}>
+							{voteError.value}
+						</span>
+					) : null}
 				</div>
 			) : showVoteCount ? (
 				<div {...stylex.props(styles.voting)}>
 					<span {...stylex.props(styles.voteCount, voteCountStyle)}>{netVotes}</span>
 				</div>
 			) : (
-				<span />
+				<span {...stylex.props(styles.gridSpacer)} />
 			)}
 
-			<span {...stylex.props(styles.time)}>
-				{formatDuration(getMockDurationSeconds(element.id))}
-			</span>
+			<span {...stylex.props(styles.time)}>{durationLabel ?? UNKNOWN_DURATION}</span>
 
 			{onMoveToPlayback || onRemove ? (
 				<div {...stylex.props(styles.actions)}>
@@ -350,7 +393,7 @@ function QueueSongItem({
 					) : null}
 				</div>
 			) : (
-				<span />
+				<span {...stylex.props(styles.gridSpacer)} />
 			)}
 
 			<ConfirmPopup

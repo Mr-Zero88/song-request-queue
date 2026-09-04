@@ -12,6 +12,8 @@ const styles = stylex.create({
 	root: {
 		maxWidth: layout.contentMaxWidth,
 		margin: "auto",
+		padding: space.lg,
+		boxSizing: "border-box",
 		display: "flex",
 		flexDirection: "column",
 		gap: space.md,

@@ -1,4 +1,10 @@
-import { addToQueue, deleteSession, queues, session } from "@/api/api.ts";
+import {
+	addToQueue,
+	deleteSession,
+	queues,
+	removeFromQueue,
+	session,
+} from "@/api/api.ts";
 import SearchBar from "@/components/searchBar.tsx";
 import Queue from "@/components/queue.tsx";
 import NowPlaying from "@/components/nowPlaying.tsx";
@@ -8,10 +14,13 @@ import Button from "@/components/ui/button.tsx";
 import Card from "@/components/ui/card.tsx";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import QueueClosedBanner from "@/components/queueClosedBanner.tsx";
+import ConfirmPopup from "@/components/confirmPopup.tsx";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
+import { useSignal } from "@preact/signals-react";
 import { MOCK_QUEUE_CLOSED, PLAYBACK_QUEUE_ID, REQUEST_QUEUE_NAME } from "@/constants.ts";
 import * as stylex from "@stylexjs/stylex";
-import { Heart, LogOut } from "lucide-react";
+import { signal } from "@preact/signals-react";
+import { AlertCircle, Heart, LogOut, Trash2 } from "lucide-react";
 
 import { colors, fontSizes, fontWeights, space } from "../vars.stylex.ts";
 
@@ -23,18 +32,27 @@ type QueueViewProps = {
 };
 
 const LG = "@media (min-width: 1024px)";
+const NARROW = "@media (max-width: 639px)";
 
 const styles = stylex.create({
 	header: {
 		display: "flex",
 		justifyContent: "space-between",
 		alignItems: "center",
+		gap: space.md,
 		marginBottom: space.md,
 	},
 	greeting: {
 		color: colors.primaryText,
-		fontSize: fontSizes.lg,
+		fontSize: { default: fontSizes.lg, [NARROW]: fontSizes.md },
 		fontWeight: fontWeights.semibold,
+		minWidth: 0,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+	},
+	// Without this the label breaks into "Log / out" on a narrow screen.
+	headerAction: {
+		flexShrink: 0,
 	},
 	adminHeader: {
 		display: "flex",
@@ -82,6 +100,10 @@ const styles = stylex.create({
 		gap: space.md,
 		alignItems: "center",
 	},
+	ownRequestAction: {
+		marginLeft: "auto",
+		flexShrink: 0,
+	},
 	ownRequestDesc: {
 		display: "flex",
 		flexDirection: "column",
@@ -102,19 +124,79 @@ const styles = stylex.create({
 		fontSize: fontSizes.sm,
 		fontWeight: fontWeights.semibold,
 	},
+	errorRow: {
+		display: "flex",
+		alignItems: "center",
+		gap: space.sm,
+	},
+	errorIcon: {
+		color: colors.danger,
+		flexShrink: 0,
+	},
+	errorText: {
+		flex: 1,
+		minWidth: 0,
+		color: colors.primaryText,
+		fontSize: fontSizes.sm,
+	},
 });
 
-const requestLink = (link: string) => {
+// Both actions below are fired without the caller awaiting them, so a failure
+// has nowhere else to go — the UI would otherwise look identical to success.
+const actionError = signal<string | null>(null);
+
+function ActionError() {
+	if (actionError.value == null) return null;
+
+	return (
+		<Card>
+			<div {...stylex.props(styles.errorRow)}>
+				<AlertCircle size={16} {...stylex.props(styles.errorIcon)} />
+				<span {...stylex.props(styles.errorText)}>{actionError.value}</span>
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => (actionError.value = null)}
+				>
+					Dismiss
+				</Button>
+			</div>
+		</Card>
+	);
+}
+
+const requestLink = async (link: string) => {
 	const requestQueue = queues.value.find(
 		(q) => q.value.name === REQUEST_QUEUE_NAME,
 	);
-	if (requestQueue) {
-		void addToQueue(requestQueue.value.id, link, session.value?.username);
+	if (!requestQueue) {
+		actionError.value =
+			"Couldn't find the request queue — it may still be loading. Try again in a moment.";
+		return;
+	}
+
+	actionError.value = null;
+	const error = await addToQueue(
+		requestQueue.value.id,
+		link,
+		session.value?.username,
+	);
+	if (error) {
+		actionError.value = error.message;
 	}
 };
 
 const handleLogout = async () => {
-	await deleteSession();
+	const error = await deleteSession();
+	if (error) {
+		// The server-side session and its httpOnly cookie are still alive, so
+		// clearing `session` here would only log the user straight back in on the
+		// next reload. Keep them signed in and say what happened instead.
+		actionError.value = `${error.message} — you are still signed in.`;
+		return;
+	}
+
+	actionError.value = null;
 	session.value = null;
 };
 
@@ -122,10 +204,30 @@ type OwnRequestRowProps = {
 	song: QueueItem;
 	position: number;
 	aheadCount: number;
+	queueId: string;
 };
 
-function OwnRequestRow({ song, position, aheadCount }: OwnRequestRowProps) {
+function OwnRequestRow({
+	song,
+	position,
+	aheadCount,
+	queueId,
+}: OwnRequestRowProps) {
 	const metadata = useVideoMetadata(song.link);
+	const confirming = useSignal(false);
+	const isWithdrawing = useSignal(false);
+
+	const withdraw = async () => {
+		if (isWithdrawing.value) return;
+
+		isWithdrawing.value = true;
+		try {
+			const error = await removeFromQueue(queueId, song.link);
+			actionError.value = error ? error.message : null;
+		} finally {
+			isWithdrawing.value = false;
+		}
+	};
 
 	return (
 		<div {...stylex.props(styles.ownRequestRow)}>
@@ -147,6 +249,29 @@ function OwnRequestRow({ song, position, aheadCount }: OwnRequestRowProps) {
 						: `${aheadCount} song${aheadCount > 1 ? "s" : ""} ahead of you`}
 				</span>
 			</div>
+
+			<div {...stylex.props(styles.ownRequestAction)}>
+				<Button
+					variant="ghost"
+					size="sm"
+					aria-label="Withdraw this request"
+					disabled={isWithdrawing.value}
+					onClick={() => (confirming.value = true)}
+				>
+					<Trash2 size={14} />
+					{isWithdrawing.value ? "Removing..." : "Withdraw"}
+				</Button>
+			</div>
+
+			<ConfirmPopup
+				open={confirming.value}
+				message="Take this song back out of the queue?"
+				onCancel={() => (confirming.value = false)}
+				onConfirm={() => {
+					confirming.value = false;
+					void withdraw();
+				}}
+			/>
 		</div>
 	);
 }
@@ -175,6 +300,7 @@ function OwnRequestsSummary() {
 					song={song}
 					position={index + 1}
 					aheadCount={index}
+					queueId={requestQueue.value.id}
 				/>
 			))}
 		</Card>
@@ -194,12 +320,14 @@ export default function QueueView({ role }: QueueViewProps) {
 	const header = (
 		<div {...stylex.props(styles.header)}>
 			<span {...stylex.props(styles.greeting)}>
-				Hey {session.value?.username}, request your favorit songs!
+				Hey {session.value?.username}, request your favorite songs!
 			</span>
-			<Button variant="ghost" size="sm" onClick={() => void handleLogout()}>
-				<LogOut size={14} />
-				Log out
-			</Button>
+			<div {...stylex.props(styles.headerAction)}>
+				<Button variant="ghost" size="sm" onClick={() => void handleLogout()}>
+					<LogOut size={14} />
+					Log out
+				</Button>
+			</div>
 		</div>
 	);
 
@@ -213,8 +341,10 @@ export default function QueueView({ role }: QueueViewProps) {
 					</Button>
 				</div>
 
+				<ActionError />
+
 				<div {...stylex.props(styles.adminSearchRow)}>
-					<SearchBar onSelect={requestLink} />
+					<SearchBar onSelect={(link) => void requestLink(link)} />
 				</div>
 
 				<div {...stylex.props(styles.adminGrid)}>
@@ -248,10 +378,11 @@ export default function QueueView({ role }: QueueViewProps) {
 	return (
 		<>
 			{header}
+			<ActionError />
 			{MOCK_QUEUE_CLOSED ? (
 				<QueueClosedBanner />
 			) : (
-				<SearchBar onSelect={requestLink} />
+				<SearchBar onSelect={(link) => void requestLink(link)} />
 			)}
 			<NowPlaying />
 			<OwnRequestsSummary />
