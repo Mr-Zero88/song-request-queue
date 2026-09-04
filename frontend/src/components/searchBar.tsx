@@ -1,4 +1,5 @@
 import { useSignal } from "@preact/signals-react";
+import { useEffect, useRef } from "react";
 import * as stylex from "@stylexjs/stylex";
 import { Clipboard, Search } from "lucide-react";
 
@@ -44,8 +45,17 @@ const styles = stylex.create({
 		alignItems: "center",
 		gap: space.xs,
 	},
-	panel: {
+	// Overlays the content below instead of pushing it down the page.
+	dropdown: {
+		position: "absolute",
+		top: "100%",
+		left: 0,
+		right: 0,
 		marginTop: space.sm,
+		zIndex: 20,
+	},
+	panel: {
+		marginTop: 0,
 	},
 	hint: {
 		color: colors.secondaryText,
@@ -100,6 +110,20 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
 	const active = useSignal(false);
 	const query = useSignal("");
 	const confirmClipboard = useSignal(false);
+	const rootRef = useRef<HTMLDivElement>(null);
+
+	// Escape and picking a result aren't the only ways out of the dropdown —
+	// without this it stays open for the rest of the session once focused.
+	useEffect(() => {
+		const handlePointerDown = (e: PointerEvent) => {
+			if (!rootRef.current?.contains(e.target as Node)) {
+				active.value = false;
+			}
+		};
+
+		document.addEventListener("pointerdown", handlePointerDown);
+		return () => document.removeEventListener("pointerdown", handlePointerDown);
+	}, [active]);
 
 	const videoId = getYouTubeVideoId(query.value);
 	const metadata = useVideoMetadata(query.value);
@@ -121,7 +145,7 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
 	};
 
 	return (
-		<div {...stylex.props(styles.root)}>
+		<div ref={rootRef} {...stylex.props(styles.root)}>
 			<ConfirmPopup
 				open={confirmClipboard.value}
 				message="Use clipboard content as search?"
@@ -148,46 +172,48 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
 			/>
 
 			{active.value ? (
-				<Card>
-					<div {...stylex.props(styles.panel)}>
-						{hasResult ? (
-							metadata.value ? (
-								<button
-									type="button"
-									onClick={() => select(query.value)}
-									{...stylex.props(styles.result)}
-								>
-									<YoutubeThumbnail
-										youtubeURL={query.value}
-										alt={metadata.value.title}
-									/>
-									<div {...stylex.props(styles.resultDesc)}>
-										<span {...stylex.props(styles.resultTitle)}>
-											{metadata.value.title}
-										</span>
-										<span {...stylex.props(styles.resultAuthor)}>
-											{metadata.value.author_name}
-										</span>
-									</div>
-								</button>
+				<div {...stylex.props(styles.dropdown)}>
+					<Card>
+						<div {...stylex.props(styles.panel)}>
+							{hasResult ? (
+								metadata.value ? (
+									<button
+										type="button"
+										onClick={() => select(query.value)}
+										{...stylex.props(styles.result)}
+									>
+										<YoutubeThumbnail
+											youtubeURL={query.value}
+											alt={metadata.value.title}
+										/>
+										<div {...stylex.props(styles.resultDesc)}>
+											<span {...stylex.props(styles.resultTitle)}>
+												{metadata.value.title}
+											</span>
+											<span {...stylex.props(styles.resultAuthor)}>
+												{metadata.value.author_name}
+											</span>
+										</div>
+									</button>
+								) : (
+									<p {...stylex.props(styles.hint)}>Loading preview...</p>
+								)
 							) : (
-								<p {...stylex.props(styles.hint)}>Loading preview...</p>
-							)
-						) : (
-							<p {...stylex.props(styles.hint)}>
-								Paste a YouTube link to find your song.
-							</p>
-						)}
-						<button
-							type="button"
-							onClick={() => (confirmClipboard.value = true)}
-							{...stylex.props(styles.clipboardHint, styles.clipboardHintRow)}
-						>
-							<Clipboard size={14} />
-							Use link from clipboard
-						</button>
-					</div>
-				</Card>
+								<p {...stylex.props(styles.hint)}>
+									Paste a YouTube link to find your song.
+								</p>
+							)}
+							<button
+								type="button"
+								onClick={() => (confirmClipboard.value = true)}
+								{...stylex.props(styles.clipboardHint, styles.clipboardHintRow)}
+							>
+								<Clipboard size={14} />
+								Use link from clipboard
+							</button>
+						</div>
+					</Card>
+				</div>
 			) : null}
 		</div>
 	);

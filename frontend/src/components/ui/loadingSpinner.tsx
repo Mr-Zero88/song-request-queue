@@ -2,6 +2,8 @@ import * as stylex from "@stylexjs/stylex";
 
 import { colors } from "../../vars.stylex.ts";
 
+const REDUCED_MOTION = "@media (prefers-reduced-motion: reduce)";
+
 type LoadingSpinnerProps = {
 	size?: number;
 };
@@ -20,7 +22,7 @@ const styles = stylex.create({
 			to: { transform: "rotate(360deg)" },
 		}),
 		animationDuration: "0.6s",
-		animationIterationCount: "infinite",
+		animationIterationCount: { default: "infinite", [REDUCED_MOTION]: 1 },
 		animationTimingFunction: "linear",
 	}),
 });
