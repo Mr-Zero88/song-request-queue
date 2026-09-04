@@ -7,6 +7,7 @@ import {
 	voteOnSong,
 } from "@/api/api.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
+import { useVoteCooldown } from "@/hooks/useVoteCooldown.ts";
 import { useSignal, type Signal } from "@preact/signals-react";
 import * as stylex from "@stylexjs/stylex";
 import { ArrowBigDown, ArrowBigUp, ListMusic, Trash2, type LucideIcon } from "lucide-react";
@@ -148,6 +149,10 @@ const styles = stylex.create({
 	},
 	voteButton: {
 		display: "flex",
+		":disabled": {
+			opacity: 0.4,
+			cursor: "not-allowed",
+		},
 		alignItems: "center",
 		justifyContent: "center",
 		width: "1.75rem",
@@ -169,6 +174,13 @@ const styles = stylex.create({
 		fontWeight: fontWeights.semibold,
 		minWidth: "1.25rem",
 		textAlign: "center",
+	},
+	voteCooldown: {
+		color: colors.secondaryText,
+		fontSize: fontSizes.xs,
+		flexBasis: "100%",
+		textAlign: "center",
+		fontVariantNumeric: "tabular-nums",
 	},
 	voteError: {
 		color: colors.danger,
@@ -245,6 +257,8 @@ function QueueSongItem({
 	// Attribution and voting identity differ on the kiosk: requests made there
 	// are anonymous, but votes still need someone to hang on.
 	const voter = voterName();
+	// 0 outside the kiosk, so the guest view keeps voting freely.
+	const cooldown = useVoteCooldown();
 	const isOwnRequest =
 		element.requestedBy != null && element.requestedBy === username;
 	const addedByLabel = isOwnRequest ? "You" : (element.requestedBy ?? null);
@@ -266,7 +280,7 @@ function QueueSongItem({
 				: null;
 
 	const handleVote = async (direction: "up" | "down") => {
-		if (!onVote || !voter || isVoting.value) return;
+		if (!onVote || !voter || isVoting.value || cooldown > 0) return;
 
 		isVoting.value = true;
 		voteError.value = null;
@@ -340,7 +354,7 @@ function QueueSongItem({
 						type="button"
 						aria-label="Upvote"
 						aria-pressed={userVote === "up"}
-						disabled={isVoting.value}
+						disabled={isVoting.value || cooldown > 0}
 						onClick={() => void handleVote("up")}
 						{...stylex.props(styles.voteButton, styles.voteButtonUp)}
 					>
@@ -351,7 +365,7 @@ function QueueSongItem({
 						type="button"
 						aria-label="Downvote"
 						aria-pressed={userVote === "down"}
-						disabled={isVoting.value}
+						disabled={isVoting.value || cooldown > 0}
 						onClick={() => void handleVote("down")}
 						{...stylex.props(styles.voteButton, styles.voteButtonDown)}
 					>
@@ -360,6 +374,10 @@ function QueueSongItem({
 					{voteError.value ? (
 						<span role="alert" {...stylex.props(styles.voteError)}>
 							{voteError.value}
+						</span>
+					) : cooldown > 0 ? (
+						<span {...stylex.props(styles.voteCooldown)}>
+							Next vote in {cooldown}s
 						</span>
 					) : null}
 				</div>

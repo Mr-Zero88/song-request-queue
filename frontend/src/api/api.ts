@@ -149,6 +149,36 @@ function kioskVoterId(): string {
 	return id;
 }
 
+// A kiosk stands in the open, so one person could otherwise plant themselves in
+// front of it and swing the whole queue. One vote per minute is enough to keep
+// it fair. The allowance is per device, not global: two tablets each keep their
+// own timestamp in their own storage, exactly like their voter identity.
+const KIOSK_VOTE_INTERVAL_MS = 60_000;
+const KIOSK_LAST_VOTE_KEY = "kioskLastVoteAt";
+
+function storedKioskVoteReadyAt(): number {
+	if (!isKioskRoute()) return 0;
+	const last = Number(localStorage.getItem(KIOSK_LAST_VOTE_KEY) ?? 0);
+	return Number.isFinite(last) && last > 0 ? last + KIOSK_VOTE_INTERVAL_MS : 0;
+}
+
+// Epoch ms from which the kiosk may vote again; 0 means it is free to vote.
+// Survives a reload so the cooldown cannot be skipped by refreshing the page.
+export const kioskVoteReadyAt = signal(storedKioskVoteReadyAt());
+
+// Milliseconds still to wait, 0 when a vote is allowed.
+export function kioskVoteCooldownMs(): number {
+	if (!isKioskRoute()) return 0;
+	return Math.max(0, kioskVoteReadyAt.value - Date.now());
+}
+
+function startKioskCooldown() {
+	if (!isKioskRoute()) return;
+	const now = Date.now();
+	localStorage.setItem(KIOSK_LAST_VOTE_KEY, String(now));
+	kioskVoteReadyAt.value = now + KIOSK_VOTE_INTERVAL_MS;
+}
+
 // Who a vote is attributed to. On the kiosk this is always the device, even if
 // a session cookie happens to linger on that machine — a shared screen must not
 // cast votes as whoever last signed in on it.
@@ -173,6 +203,13 @@ export async function voteOnSong(
 		return new Error("Must be logged in to vote");
 	}
 
+	const waitMs = kioskVoteCooldownMs();
+	if (waitMs > 0) {
+		return new Error(
+			`One vote per minute — ${Math.ceil(waitMs / 1000)}s to go`,
+		);
+	}
+
 	let res = await request(`/api/queue/${id}/vote`, {
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
 		method: "POST",
@@ -182,6 +219,7 @@ export async function voteOnSong(
 		return new Error("Error while voting on Song");
 	}
 
+	startKioskCooldown();
 	return null;
 }
 

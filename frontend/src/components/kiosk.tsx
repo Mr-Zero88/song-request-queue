@@ -37,7 +37,7 @@ const styles = stylex.create({
 		flexDirection: { default: "row", [NARROW]: "column" },
 		alignItems: "center",
 		justifyContent: "space-between",
-		gap: space.lg,
+		gap: space.md,
 	},
 	heroText: {
 		display: "flex",
@@ -47,7 +47,7 @@ const styles = stylex.create({
 	},
 	heroTitle: {
 		color: colors.primaryText,
-		fontSize: { default: fontSizes.xxl, [NARROW]: fontSizes.lg },
+		fontSize: { default: fontSizes.lg, [NARROW]: fontSizes.md },
 		fontWeight: fontWeights.bold,
 		margin: 0,
 	},
@@ -56,12 +56,12 @@ const styles = stylex.create({
 		alignItems: "center",
 		gap: space.xs,
 		color: colors.secondaryText,
-		fontSize: fontSizes.md,
+		fontSize: fontSizes.sm,
 		margin: 0,
 	},
 	joinUrl: {
 		color: colors.accent,
-		fontSize: fontSizes.sm,
+		fontSize: fontSizes.xs,
 		fontWeight: fontWeights.semibold,
 		wordBreak: "break-all",
 	},
@@ -72,7 +72,7 @@ const styles = stylex.create({
 		flexShrink: 0,
 		borderRadius: radius.md,
 		backgroundColor: "#ffffff",
-		padding: space.sm,
+		padding: space.md,
 		lineHeight: 0,
 	},
 });
@@ -113,14 +113,14 @@ function JoinHero() {
 				</div>
 
 				<div {...stylex.props(styles.qrPlate)}>
-					{/* marginSize is in modules: the spec asks for a 4-module quiet
-					    zone, and padding on the plate alone gave only 1.4. size is
-					    raised to match so the code itself does not shrink. */}
+					{/* The spec asks for a 4-module quiet zone. Two modules sit
+					    inside the SVG, the white plate's padding supplies the rest,
+					    which keeps the code itself as large as possible at this size. */}
 					<QRCodeSVG
 						value={joinUrl}
-						size={192}
+						size={132}
 						level="M"
-						marginSize={4}
+						marginSize={2}
 						bgColor="#ffffff"
 						fgColor="#000000"
 					/>
