@@ -14,13 +14,13 @@ import Button from "@/components/ui/button.tsx";
 import Card from "@/components/ui/card.tsx";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import QueueClosedBanner from "@/components/queueClosedBanner.tsx";
+import ActionError, { actionError } from "@/components/actionError.tsx";
 import ConfirmPopup from "@/components/confirmPopup.tsx";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import { useSignal } from "@preact/signals-react";
 import { MOCK_QUEUE_CLOSED, PLAYBACK_QUEUE_ID, REQUEST_QUEUE_NAME } from "@/constants.ts";
 import * as stylex from "@stylexjs/stylex";
-import { signal } from "@preact/signals-react";
-import { AlertCircle, Heart, LogOut, Trash2 } from "lucide-react";
+import { Heart, LogOut, Trash2 } from "lucide-react";
 
 import { colors, fontSizes, fontWeights, space } from "../vars.stylex.ts";
 
@@ -124,46 +124,7 @@ const styles = stylex.create({
 		fontSize: fontSizes.sm,
 		fontWeight: fontWeights.semibold,
 	},
-	errorRow: {
-		display: "flex",
-		alignItems: "center",
-		gap: space.sm,
-	},
-	errorIcon: {
-		color: colors.danger,
-		flexShrink: 0,
-	},
-	errorText: {
-		flex: 1,
-		minWidth: 0,
-		color: colors.primaryText,
-		fontSize: fontSizes.sm,
-	},
 });
-
-// Both actions below are fired without the caller awaiting them, so a failure
-// has nowhere else to go — the UI would otherwise look identical to success.
-const actionError = signal<string | null>(null);
-
-function ActionError() {
-	if (actionError.value == null) return null;
-
-	return (
-		<Card>
-			<div {...stylex.props(styles.errorRow)}>
-				<AlertCircle size={16} {...stylex.props(styles.errorIcon)} />
-				<span {...stylex.props(styles.errorText)}>{actionError.value}</span>
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={() => (actionError.value = null)}
-				>
-					Dismiss
-				</Button>
-			</div>
-		</Card>
-	);
-}
 
 const requestLink = async (link: string) => {
 	const requestQueue = queues.value.find(

@@ -4,13 +4,20 @@ import * as stylex from "@stylexjs/stylex";
 import { QrCode } from "lucide-react";
 
 import { addToQueue, queues } from "@/api/api.ts";
+import ActionError, { actionError } from "@/components/actionError.tsx";
+import Footer from "@/components/footer.tsx";
+import History from "@/components/history.tsx";
 import NowPlaying from "@/components/nowPlaying.tsx";
 import Queue from "@/components/queue.tsx";
+import QueueClosedBanner from "@/components/queueClosedBanner.tsx";
 import SearchBar from "@/components/searchBar.tsx";
-import History from "@/components/history.tsx";
 import Button from "@/components/ui/button.tsx";
 import Modal from "@/components/ui/modal.tsx";
-import { PLAYBACK_QUEUE_ID, REQUEST_QUEUE_NAME } from "@/constants.ts";
+import {
+	MOCK_QUEUE_CLOSED,
+	PLAYBACK_QUEUE_ID,
+	REQUEST_QUEUE_NAME,
+} from "@/constants.ts";
 
 import { colors, fontSizes, fontWeights, space } from "../vars.stylex.ts";
 
@@ -18,11 +25,15 @@ const styles = stylex.create({
 	root: {
 		display: "flex",
 		flexDirection: "column",
-		gap: space.lg,
+		gap: space.md,
 	},
-	qrButtonRow: {
+	// Sits where the guest view puts its greeting and log-out button. The kiosk
+	// is a shared screen, so it has neither — the way in is the QR code.
+	header: {
 		display: "flex",
-		justifyContent: "center",
+		justifyContent: "flex-end",
+		alignItems: "center",
+		marginBottom: space.md,
 	},
 	qrModal: {
 		display: "flex",
@@ -38,12 +49,22 @@ const styles = stylex.create({
 	},
 });
 
-const requestLink = (link: string) => {
+// No session on a kiosk, so the request stays anonymous rather than being
+// attributed to whoever happens to be signed in on that machine.
+const requestLink = async (link: string) => {
 	const requestQueue = queues.value.find(
 		(q) => q.value.name === REQUEST_QUEUE_NAME,
 	);
-	if (requestQueue) {
-		void addToQueue(requestQueue.value.id, link);
+	if (!requestQueue) {
+		actionError.value =
+			"Couldn't find the request queue — it may still be loading. Try again in a moment.";
+		return;
+	}
+
+	actionError.value = null;
+	const error = await addToQueue(requestQueue.value.id, link);
+	if (error) {
+		actionError.value = error.message;
 	}
 };
 
@@ -53,12 +74,10 @@ function JoinQrButton() {
 
 	return (
 		<>
-			<div {...stylex.props(styles.qrButtonRow)}>
-				<Button variant="secondary" onClick={() => (open.value = true)}>
-					<QrCode size={16} />
-					Scan to join on your phone
-				</Button>
-			</div>
+			<Button variant="secondary" onClick={() => (open.value = true)}>
+				<QrCode size={16} />
+				Scan to join on your phone
+			</Button>
 
 			<Modal open={open.value} onClose={() => (open.value = false)}>
 				<div {...stylex.props(styles.qrModal)}>
@@ -73,7 +92,17 @@ function JoinQrButton() {
 export default function Kiosk() {
 	return (
 		<div {...stylex.props(styles.root)}>
-			<SearchBar onSelect={requestLink} />
+			<div {...stylex.props(styles.header)}>
+				<JoinQrButton />
+			</div>
+
+			<ActionError />
+
+			{MOCK_QUEUE_CLOSED ? (
+				<QueueClosedBanner />
+			) : (
+				<SearchBar onSelect={(link) => void requestLink(link)} />
+			)}
 
 			<NowPlaying />
 
@@ -82,15 +111,15 @@ export default function Kiosk() {
 					<Queue
 						key={queue.value.id}
 						queue={queue}
-						showMoveToPlaybackButton={false}
-						showRemoveButton={false}
+						// Scores are shown, but not the buttons: voting is tied to a
+						// username and the kiosk has no one signed in.
+						showVoteCount={queue.value.name === REQUEST_QUEUE_NAME}
 					/>
 				) : null,
 			)}
 
 			<History />
-
-			<JoinQrButton />
+			<Footer />
 		</div>
 	);
 }
