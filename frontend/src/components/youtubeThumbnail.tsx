@@ -1,6 +1,7 @@
-import { getThumbnail } from "@/api/youtube";
-import { shadows, radius } from "../vars.stylex.ts";
+import { getThumbnail, type ThumbnailQuality } from "@/api/youtube";
+import { colors, shadows, radius } from "../vars.stylex.ts";
 import * as stylex from "@stylexjs/stylex";
+import { Music } from "lucide-react";
 
 type YoutubeThumbnailProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 	youtubeURL: string;
@@ -34,6 +35,13 @@ const styles = stylex.create({
 		width: { default: "14.5rem", [TINY]: "9.5rem" },
 		maxWidth: { default: "14.5rem", [TINY]: "9.5rem" },
 	},
+	placeholder: {
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
+		backgroundColor: colors.background,
+		color: colors.secondaryText,
+	},
 });
 
 const SIZE_STYLES = {
@@ -43,16 +51,41 @@ const SIZE_STYLES = {
 	compactHero: styles.compactHero,
 } as const;
 
+// The two large sizes are rendered well above 320px wide, so they get the
+// bigger poster; the rest would only pay for pixels they scale away.
+const SIZE_QUALITY: Record<string, ThumbnailQuality> = {
+	default: "medium",
+	hero: "high",
+	compact: "medium",
+	compactHero: "high",
+};
+
 export default function YoutubeThumbnail({
 	youtubeURL,
 	alt,
 	size = "default",
 	...rest
 }: YoutubeThumbnailProps) {
-	const thumbnailSrc = getThumbnail(youtubeURL);
+	const thumbnailSrc = getThumbnail(youtubeURL, SIZE_QUALITY[size]);
+
+	// A link we can't parse has no poster to show; render a neutral tile rather
+	// than a broken image that collapses the row around it.
+	if (thumbnailSrc == null) {
+		return (
+			<div
+				role="img"
+				aria-label={alt ?? "No thumbnail available"}
+				{...stylex.props(styles.thumbnail, SIZE_STYLES[size], styles.placeholder)}
+			>
+				<Music size={20} />
+			</div>
+		);
+	}
 
 	return (
 		<img
+			loading="lazy"
+			decoding="async"
 			{...rest}
 			{...stylex.props(styles.thumbnail, SIZE_STYLES[size])}
 			src={thumbnailSrc}

@@ -38,12 +38,27 @@ export async function getVideoMetadata(
 	return data;
 }
 
-export function getThumbnail(url: string): string {
+// "default" is 120x90 and looks soft at every size we render; the two larger
+// posters cost nothing extra and are what the layout actually needs.
+export type ThumbnailQuality = "medium" | "high";
+
+const THUMBNAIL_FILES: Record<ThumbnailQuality, string> = {
+	medium: "mqdefault.jpg", // 320x180
+	high: "hqdefault.jpg", // 480x360
+};
+
+// Returns null for anything that isn't a YouTube link, so callers can fall back
+// to a placeholder. (getYouTubeVideoId reports failure with an Error *object*,
+// which is truthy — a plain falsy check never catches it.)
+export function getThumbnail(
+	url: string,
+	quality: ThumbnailQuality = "medium",
+): string | null {
 	const videoId = getYouTubeVideoId(url);
 
-	if (!videoId) {
-		throw new Error("Invalid YouTube URL");
+	if (videoId instanceof Error) {
+		return null;
 	}
 
-	return `https://img.youtube.com/vi/${videoId}/1.jpg`;
+	return `https://img.youtube.com/vi/${videoId}/${THUMBNAIL_FILES[quality]}`;
 }
