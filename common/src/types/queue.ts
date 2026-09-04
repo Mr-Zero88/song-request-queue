@@ -7,6 +7,18 @@ export interface Queue {
 export interface QueueItem {
     id: string;
     link: string;
+    requestedBy?: string;
+    startedAt?: number;
+    upvotes?: string[];
+    downvotes?: string[];
+}
+
+export type VoteDirection = "up" | "down";
+
+export interface VoteRequestBody {
+    link: string;
+    username: string;
+    direction: VoteDirection;
 }
 
 export interface GetQueueRequestParams {
@@ -15,6 +27,7 @@ export interface GetQueueRequestParams {
 
 export interface AddToQueueRequestBody {
     link: string;
+    requestedBy?: string;
 }
 
 export interface AddToQueueRequestParams {
