@@ -13,8 +13,19 @@ const lightDark = <T extends string>(light: T, dark: T) => ({
 
 export const colors = stylex.defineVars({
 	primaryText: lightDark("#111827", "#f9fafb"),
+	secondaryText: lightDark("#6b7280", "#9ca3af"),
 
 	background: lightDark("#ffffff", "#101010"),
+	surface: lightDark("#f9fafb", "#18181b"),
+	border: lightDark("#e5e7eb", "#27272a"),
+
+	accent: lightDark("#2563eb", "#3b82f6"),
+	accentText: lightDark("#ffffff", "#ffffff"),
+
+	danger: lightDark("#dc2626", "#f87171"),
+	dangerText: lightDark("#ffffff", "#ffffff"),
+
+	success: lightDark("#16a34a", "#4ade80"),
 });
 
 export const fontSizes = stylex.defineVars({
@@ -24,6 +35,22 @@ export const fontSizes = stylex.defineVars({
 	lg: "1.125rem",
 	xl: "1.25rem",
 	xxl: "1.5rem",
+});
+
+export const fontWeights = stylex.defineVars({
+	regular: "400",
+	medium: "500",
+	semibold: "600",
+	bold: "700",
+});
+
+export const space = stylex.defineVars({
+	xs: "0.25rem",
+	sm: "0.5rem",
+	md: "0.75rem",
+	lg: "1rem",
+	xl: "1.5rem",
+	xxl: "2rem",
 });
 
 export const radius = stylex.defineVars({

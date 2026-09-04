@@ -1,28 +1,16 @@
 import * as stylex from "@stylexjs/stylex";
+import { Check, X } from "lucide-react";
+
+import Button from "@/components/ui/button.tsx";
+import Modal from "@/components/ui/modal.tsx";
+import { space } from "../vars.stylex.ts";
 
 const styles = stylex.create({
-	backdrop: {
-		position: "fixed",
-		inset: 0,
-		backgroundColor: "rgba(0,0,0,0.5)",
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "center",
-	},
-
-	popup: {
-		backgroundColor: "white",
-		padding: "1rem",
-		borderRadius: "12px",
-		minWidth: "300px",
-		boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-	},
-
 	buttonRow: {
 		display: "flex",
 		justifyContent: "flex-end",
-		gap: "0.5rem",
-		marginTop: "1rem",
+		gap: space.sm,
+		marginTop: space.lg,
 	},
 });
 
@@ -39,18 +27,20 @@ export default function ConfirmPopup({
 	onConfirm,
 	onCancel,
 }: ConfirmPopupProps) {
-	if (!open) return null;
-
 	return (
-		<div {...stylex.props(styles.backdrop)} onClick={onCancel}>
-			<div {...stylex.props(styles.popup)} onClick={(e) => e.stopPropagation()}>
-				<p>{message}</p>
+		<Modal open={open} onClose={onCancel}>
+			<p>{message}</p>
 
-				<div {...stylex.props(styles.buttonRow)}>
-					<button onClick={onCancel}>Cancel</button>
-					<button onClick={onConfirm}>OK</button>
-				</div>
+			<div {...stylex.props(styles.buttonRow)}>
+				<Button variant="secondary" onClick={onCancel}>
+					<X size={14} />
+					Cancel
+				</Button>
+				<Button variant="primary" onClick={onConfirm}>
+					<Check size={14} />
+					OK
+				</Button>
 			</div>
-		</div>
+		</Modal>
 	);
 }

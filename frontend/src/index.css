@@ -2,6 +2,10 @@ html {
 	font-family: "Inter", "system-ui";
 }
 
+body {
+	margin: 0;
+}
+
 @supports (font-variation-settings: normal) {
 	html {
 		font-family: "InterVariable", "system-ui";
