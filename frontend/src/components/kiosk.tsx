@@ -1,28 +1,17 @@
+import { media } from "../breakpoints.stylex.ts";
 import { QRCodeSVG } from "qrcode.react";
 import * as stylex from "@stylexjs/stylex";
 import { Smartphone } from "lucide-react";
 
 import { useSignal } from "@preact/signals-react";
 
-import { queues } from "@/api/api.ts";
 import { requestSong } from "@/requestSong.ts";
-import Footer from "@/components/footer.tsx";
-import History from "@/components/history.tsx";
-import NowPlaying from "@/components/nowPlaying.tsx";
-import Queue from "@/components/queue.tsx";
-import QueueClosedBanner from "@/components/queueClosedBanner.tsx";
-import SearchBar from "@/components/searchBar.tsx";
 import ConfirmPopup from "@/components/confirmPopup.tsx";
+import QueueBoard from "@/components/queueBoard.tsx";
 import Card from "@/components/ui/card.tsx";
-import {
-	MOCK_QUEUE_CLOSED,
-	PLAYBACK_QUEUE_ID,
-	REQUEST_QUEUE_NAME,
-} from "@/constants.ts";
 
 import { colors, fontSizes, fontWeights, radius, space } from "../vars.stylex.ts";
 
-const NARROW = "@media (max-width: 639px)";
 
 const styles = stylex.create({
 	root: {
@@ -34,7 +23,7 @@ const styles = stylex.create({
 	// screen rather than hidden behind a button nobody walks over to press.
 	hero: {
 		display: "flex",
-		flexDirection: { default: "row", [NARROW]: "column" },
+		flexDirection: { default: "row", [media.narrow]: "column" },
 		alignItems: "center",
 		justifyContent: "space-between",
 		gap: space.md,
@@ -47,7 +36,7 @@ const styles = stylex.create({
 	},
 	heroTitle: {
 		color: colors.primaryText,
-		fontSize: { default: fontSizes.lg, [NARROW]: fontSizes.md },
+		fontSize: { default: fontSizes.lg, [media.narrow]: fontSizes.md },
 		fontWeight: fontWeights.bold,
 		margin: 0,
 	},
@@ -117,14 +106,11 @@ export default function Kiosk() {
 	const pendingLink = useSignal<string | null>(null);
 
 	return (
-		<div {...stylex.props(styles.root)}>
-			<JoinHero />
-
-			{MOCK_QUEUE_CLOSED ? (
-				<QueueClosedBanner />
-			) : (
-				<SearchBar onSelect={(link) => (pendingLink.value = link)} />
-			)}
+		<>
+			<QueueBoard
+				header={<JoinHero />}
+				onSelectSong={(link) => (pendingLink.value = link)}
+			/>
 
 			<ConfirmPopup
 				open={pendingLink.value != null}
@@ -137,21 +123,6 @@ export default function Kiosk() {
 					if (link) void requestSong(link);
 				}}
 			/>
-
-			<NowPlaying />
-
-			{queues.value.map((queue) =>
-				queue.value.id !== PLAYBACK_QUEUE_ID ? (
-					<Queue
-						key={queue.value.id}
-						queue={queue}
-						showVoteButtons={queue.value.name === REQUEST_QUEUE_NAME}
-					/>
-				) : null,
-			)}
-
-			<History />
-			<Footer />
-		</div>
+		</>
 	);
 }

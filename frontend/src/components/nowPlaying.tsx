@@ -1,4 +1,6 @@
+import { media } from "../breakpoints.stylex.ts";
 import { displayName, queues } from "@/api/api.ts";
+import { netVotes, requesterLabel, voteNoun } from "@/utils/song.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import Card from "@/components/ui/card.tsx";
@@ -12,8 +14,6 @@ import { PLAYBACK_QUEUE_ID } from "../constants.ts";
 
 import type { QueueItem } from "song-request-queue-common/types/queue";
 
-const NARROW = "@media (max-width: 639px)";
-const REDUCED_MOTION = "@media (prefers-reduced-motion: reduce)";
 
 const waveBounce = stylex.keyframes({
 	"0%, 100%": { transform: "scaleY(0.35)" },
@@ -60,11 +60,11 @@ const styles = stylex.create({
 	songTitle: {
 		display: "-webkit-box",
 		WebkitBoxOrient: "vertical",
-		WebkitLineClamp: { default: 3, [NARROW]: 2 },
+		WebkitLineClamp: { default: 3, [media.narrow]: 2 },
 		overflow: "hidden",
 		width: "100%",
 		color: colors.primaryText,
-		fontSize: { default: fontSizes.lg, [NARROW]: fontSizes.md },
+		fontSize: { default: fontSizes.lg, [media.narrow]: fontSizes.md },
 		fontWeight: fontWeights.bold,
 		lineHeight: 1.3,
 	},
@@ -88,11 +88,11 @@ const styles = stylex.create({
 		color: colors.secondaryText,
 		fontSize: fontSizes.sm,
 		minWidth: 0,
-		overflow: { default: "hidden", [NARROW]: "visible" },
+		overflow: { default: "hidden", [media.narrow]: "visible" },
 		// On a phone the single line truncates away the vote count itself, so
 		// let it wrap instead — the row is centred either way.
-		textOverflow: { default: "ellipsis", [NARROW]: "clip" },
-		whiteSpace: { default: "nowrap", [NARROW]: "normal" },
+		textOverflow: { default: "ellipsis", [media.narrow]: "clip" },
+		whiteSpace: { default: "nowrap", [media.narrow]: "normal" },
 	},
 	requestedByOwn: {
 		color: colors.accent,
@@ -132,7 +132,7 @@ const styles = stylex.create({
 		animationName: waveBounce,
 		animationDuration: "1.1s",
 		animationTimingFunction: "ease-in-out",
-		animationIterationCount: { default: "infinite", [REDUCED_MOTION]: 0 },
+		animationIterationCount: { default: "infinite", [media.reducedMotion]: 0 },
 	},
 });
 
@@ -163,13 +163,12 @@ type CurrentPlaybackSongProps = {
 function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 	const metadata = useVideoMetadata(song.link);
 	const username = displayName();
-	const isOwnRequest = song.requestedBy != null && song.requestedBy === username;
-	const requesterLabel = isOwnRequest ? "You" : (song.requestedBy ?? null);
-	const netVotes = (song.upvotes?.length ?? 0) - (song.downvotes?.length ?? 0);
+	const { label: requester, isOwn: isOwnRequest } = requesterLabel(song, username);
+	const votes = netVotes(song);
 	const voteCountStyle =
-		netVotes > 0
+		votes > 0
 			? styles.voteCountPositive
-			: netVotes < 0
+			: votes < 0
 				? styles.voteCountNegative
 				: null;
 
@@ -205,11 +204,11 @@ function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 								isOwnRequest ? styles.requestedByOwn : null,
 							)}
 						>
-							{requesterLabel ? `Requested by ${requesterLabel} \u00b7 ` : ""}
+							{requester ? `Requested by ${requester} \u00b7 ` : ""}
 							<span {...stylex.props(styles.voteCount, voteCountStyle)}>
-								{netVotes}
+								{votes}
 							</span>{" "}
-							{Math.abs(netVotes) === 1 ? "vote" : "votes"}
+							{voteNoun(votes)}
 						</span>
 					</div>
 				</div>

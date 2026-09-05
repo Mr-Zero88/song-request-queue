@@ -1,3 +1,4 @@
+import { media } from "../breakpoints.stylex.ts";
 import {
 	deleteSession,
 	queues,
@@ -6,19 +7,17 @@ import {
 } from "@/api/api.ts";
 import SearchBar from "@/components/searchBar.tsx";
 import Queue from "@/components/queue.tsx";
+import QueueBoard from "@/components/queueBoard.tsx";
 import NowPlaying from "@/components/nowPlaying.tsx";
-import History from "@/components/history.tsx";
-import Footer from "@/components/footer.tsx";
 import Button from "@/components/ui/button.tsx";
 import Card from "@/components/ui/card.tsx";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
-import QueueClosedBanner from "@/components/queueClosedBanner.tsx";
 import { notify } from "@/components/ui/toast.tsx";
 import { requestSong } from "@/requestSong.ts";
 import ConfirmPopup from "@/components/confirmPopup.tsx";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import { useSignal } from "@preact/signals-react";
-import { MOCK_QUEUE_CLOSED, PLAYBACK_QUEUE_ID, REQUEST_QUEUE_NAME } from "@/constants.ts";
+import { PLAYBACK_QUEUE_ID, REQUEST_QUEUE_NAME } from "@/constants.ts";
 import * as stylex from "@stylexjs/stylex";
 import { Heart, LogOut, Trash2 } from "lucide-react";
 
@@ -31,8 +30,6 @@ type QueueViewProps = {
 	role: Role;
 };
 
-const LG = "@media (min-width: 1024px)";
-const NARROW = "@media (max-width: 639px)";
 
 const styles = stylex.create({
 	header: {
@@ -44,7 +41,7 @@ const styles = stylex.create({
 	},
 	greeting: {
 		color: colors.primaryText,
-		fontSize: { default: fontSizes.lg, [NARROW]: fontSizes.md },
+		fontSize: { default: fontSizes.lg, [media.narrow]: fontSizes.md },
 		fontWeight: fontWeights.semibold,
 		minWidth: 0,
 		overflow: "hidden",
@@ -75,7 +72,7 @@ const styles = stylex.create({
 	},
 	adminGrid: {
 		display: "grid",
-		gridTemplateColumns: { default: "1fr", [LG]: "1.2fr 1fr 1fr" },
+		gridTemplateColumns: { default: "1fr", [media.wide]: "1.2fr 1fr 1fr" },
 		gap: space.lg,
 		alignItems: "stretch",
 	},
@@ -316,30 +313,10 @@ export default function QueueView({ role }: QueueViewProps) {
 	}
 
 	return (
-		<>
-			{header}
-			{MOCK_QUEUE_CLOSED ? (
-				<QueueClosedBanner />
-			) : (
-				<SearchBar
-						onSelect={(link) => void requestSong(link, session.value?.username)}
-					/>
-			)}
-			<NowPlaying />
-			<OwnRequestsSummary />
-
-			{queues.value.map((queue) =>
-				queue.value.id !== PLAYBACK_QUEUE_ID ? (
-					<Queue
-						key={queue.value.id}
-						queue={queue}
-						showVoteButtons={queue.value.name === REQUEST_QUEUE_NAME}
-					/>
-				) : null,
-			)}
-
-			<History />
-			<Footer />
-		</>
+		<QueueBoard
+			header={header}
+			onSelectSong={(link) => void requestSong(link, session.value?.username)}
+			belowNowPlaying={<OwnRequestsSummary />}
+		/>
 	);
 }

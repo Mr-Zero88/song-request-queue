@@ -1,3 +1,4 @@
+import { media } from "../breakpoints.stylex.ts";
 import {
 	addToQueue,
 	displayName,
@@ -6,6 +7,7 @@ import {
 	voterName,
 	voteOnSong,
 } from "@/api/api.ts";
+import { netVotes, requesterLabel } from "@/utils/song.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import { useVoteCooldown } from "@/hooks/useVoteCooldown.ts";
 import { notify } from "@/components/ui/toast.tsx";
@@ -25,7 +27,6 @@ import ConfirmPopup from "@/components/confirmPopup.tsx";
 
 import type { Queue, QueueItem } from "song-request-queue-common/types/queue";
 
-const NARROW = "@media (max-width: 639px)";
 
 // Shared column widths so the header row and every song row line up exactly.
 // Only the last (actions) column is content-sized — since it's last, its
@@ -58,7 +59,7 @@ const styles = stylex.create({
 	},
 
 	listHeader: {
-		display: { default: "grid", [NARROW]: "none" },
+		display: { default: "grid", [media.narrow]: "none" },
 		gridTemplateColumns: GRID_TEMPLATE,
 		alignItems: "center",
 		gap: space.md,
@@ -85,10 +86,10 @@ const styles = stylex.create({
 
 	queueElement: {
 		display: "grid",
-		gridTemplateColumns: { default: GRID_TEMPLATE, [NARROW]: GRID_TEMPLATE_NARROW },
+		gridTemplateColumns: { default: GRID_TEMPLATE, [media.narrow]: GRID_TEMPLATE_NARROW },
 		alignItems: "center",
-		gap: { default: space.md, [NARROW]: space.sm },
-		padding: { default: `${space.xs} 0`, [NARROW]: `${space.sm} 0` },
+		gap: { default: space.md, [media.narrow]: space.sm },
+		padding: { default: `${space.xs} 0`, [media.narrow]: `${space.sm} 0` },
 		borderBottomStyle: "solid",
 		borderBottomWidth: "1px",
 		borderBottomColor: colors.border,
@@ -115,15 +116,15 @@ const styles = stylex.create({
 		fontSize: fontSizes.sm,
 		fontWeight: fontWeights.semibold,
 		// Long titles otherwise push the row to four or five lines on a phone.
-		display: { default: "block", [NARROW]: "-webkit-box" },
+		display: { default: "block", [media.narrow]: "-webkit-box" },
 		WebkitBoxOrient: "vertical",
-		WebkitLineClamp: { default: "none", [NARROW]: 2 },
-		overflow: { default: "visible", [NARROW]: "hidden" },
+		WebkitLineClamp: { default: "none", [media.narrow]: 2 },
+		overflow: { default: "visible", [media.narrow]: "hidden" },
 	},
 	// Added-by and time live in their own grid columns on a wide screen; on a
 	// phone they ride along in the meta line instead of costing a row each.
 	metaExtra: {
-		display: { default: "none", [NARROW]: "inline" },
+		display: { default: "none", [media.narrow]: "inline" },
 	},
 	songAuthor: {
 		color: colors.secondaryText,
@@ -131,7 +132,7 @@ const styles = stylex.create({
 		margin: 0,
 	},
 	addedBy: {
-		display: { default: "flex", [NARROW]: "none" },
+		display: { default: "flex", [media.narrow]: "none" },
 		alignItems: "center",
 		color: colors.secondaryText,
 		fontSize: fontSizes.xs,
@@ -190,7 +191,7 @@ const styles = stylex.create({
 		color: colors.danger,
 	},
 	time: {
-		display: { default: "flex", [NARROW]: "none" },
+		display: { default: "flex", [media.narrow]: "none" },
 		alignItems: "center",
 		justifyContent: "center",
 		color: colors.secondaryText,
@@ -201,15 +202,15 @@ const styles = stylex.create({
 		display: "flex",
 		gap: space.sm,
 		flexShrink: 0,
-		gridColumn: { default: "auto", [NARROW]: "1 / -1" },
+		gridColumn: { default: "auto", [media.narrow]: "1 / -1" },
 	},
 	actionButton: {
-		flex: { default: "initial", [NARROW]: 1 },
+		flex: { default: "initial", [media.narrow]: 1 },
 	},
 	// Keeps the desktop grid columns aligned when a row has no voting or
 	// actions; on a phone those columns don't exist, so it takes no space.
 	gridSpacer: {
-		display: { default: "block", [NARROW]: "none" },
+		display: { default: "block", [media.narrow]: "none" },
 	},
 });
 
@@ -253,17 +254,18 @@ function QueueSongItem({
 	const voter = voterName();
 	// 0 outside the kiosk, so the guest view keeps voting freely.
 	const cooldown = useVoteCooldown();
-	const isOwnRequest =
-		element.requestedBy != null && element.requestedBy === username;
-	const addedByLabel = isOwnRequest ? "You" : (element.requestedBy ?? null);
-	const netVotes = (element.upvotes?.length ?? 0) - (element.downvotes?.length ?? 0);
+	const { label: addedByLabel, isOwn: isOwnRequest } = requesterLabel(
+		element,
+		username,
+	);
+	const votes = netVotes(element);
 	// No duration source is wired up, so the column shows a dash rather than a
 	// number the guest would read as real.
 	const durationLabel: string | null = null;
 	const voteCountStyle =
-		netVotes > 0
+		votes > 0
 			? styles.voteCountPositive
-			: netVotes < 0
+			: votes < 0
 				? styles.voteCountNegative
 				: null;
 	const userVote: "up" | "down" | null =
@@ -353,7 +355,7 @@ function QueueSongItem({
 					>
 						<ArrowBigUp size={18} fill={userVote === "up" ? "currentColor" : "none"} />
 					</button>
-					<span {...stylex.props(styles.voteCount, voteCountStyle)}>{netVotes}</span>
+					<span {...stylex.props(styles.voteCount, voteCountStyle)}>{votes}</span>
 					<button
 						type="button"
 						aria-label="Downvote"
@@ -372,7 +374,7 @@ function QueueSongItem({
 				</div>
 			) : showVoteCount ? (
 				<div {...stylex.props(styles.voting)}>
-					<span {...stylex.props(styles.voteCount, voteCountStyle)}>{netVotes}</span>
+					<span {...stylex.props(styles.voteCount, voteCountStyle)}>{votes}</span>
 				</div>
 			) : (
 				<span {...stylex.props(styles.gridSpacer)} />

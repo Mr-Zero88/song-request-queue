@@ -1,3 +1,4 @@
+import { media } from "../breakpoints.stylex.ts";
 import { getThumbnail, type ThumbnailQuality } from "@/api/youtube";
 import { colors, shadows, radius } from "../vars.stylex.ts";
 import * as stylex from "@stylexjs/stylex";
@@ -8,13 +9,11 @@ type YoutubeThumbnailProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 	size?: "default" | "hero" | "compact" | "compactHero";
 };
 
-const NARROW = "@media (max-width: 639px)";
-const TINY = "@media (max-width: 479px)";
 
 const styles = stylex.create({
 	thumbnail: {
 		borderRadius: radius.md,
-		minWidth: { default: "12rem", [NARROW]: "6rem" },
+		minWidth: { default: "12rem", [media.narrow]: "6rem" },
 		aspectRatio: "16/9",
 		objectFit: "cover",
 		display: "block",
@@ -26,14 +25,14 @@ const styles = stylex.create({
 		maxWidth: "24rem",
 	},
 	compact: {
-		minWidth: { default: "13rem", [TINY]: "8.5rem" },
-		width: { default: "13rem", [TINY]: "8.5rem" },
-		maxWidth: { default: "13rem", [TINY]: "8.5rem" },
+		minWidth: { default: "13rem", [media.tiny]: "8.5rem" },
+		width: { default: "13rem", [media.tiny]: "8.5rem" },
+		maxWidth: { default: "13rem", [media.tiny]: "8.5rem" },
 	},
 	compactHero: {
-		minWidth: { default: "14.5rem", [TINY]: "9.5rem" },
-		width: { default: "14.5rem", [TINY]: "9.5rem" },
-		maxWidth: { default: "14.5rem", [TINY]: "9.5rem" },
+		minWidth: { default: "14.5rem", [media.tiny]: "9.5rem" },
+		width: { default: "14.5rem", [media.tiny]: "9.5rem" },
+		maxWidth: { default: "14.5rem", [media.tiny]: "9.5rem" },
 	},
 	placeholder: {
 		display: "flex",

@@ -2,10 +2,9 @@ import { signal } from "@preact/signals-react";
 import * as stylex from "@stylexjs/stylex";
 import { AlertCircle, Check, X } from "lucide-react";
 
+import { media } from "../../breakpoints.stylex.ts";
 import { colors, fontSizes, radius, shadows, space } from "../../vars.stylex.ts";
 
-const NARROW = "@media (max-width: 639px)";
-const REDUCED_MOTION = "@media (prefers-reduced-motion: reduce)";
 
 export type ToastTone = "error" | "success";
 
@@ -70,7 +69,7 @@ const styles = stylex.create({
 		display: "flex",
 		alignItems: "center",
 		gap: space.sm,
-		width: { default: "auto", [NARROW]: "100%" },
+		width: { default: "auto", [media.narrow]: "100%" },
 		// align-items:center sizes the toast to its text, which then overflows the
 		// host's padding. Cap it against the host as well as at a readable width.
 		maxWidth: "min(28rem, 100%)",
@@ -83,7 +82,7 @@ const styles = stylex.create({
 		boxShadow: shadows.lg,
 		color: colors.primaryText,
 		fontSize: fontSizes.sm,
-		animationName: { default: slideIn, [REDUCED_MOTION]: "none" },
+		animationName: { default: slideIn, [media.reducedMotion]: "none" },
 		animationDuration: "180ms",
 		animationTimingFunction: "ease-out",
 	},
