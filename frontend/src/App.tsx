@@ -41,17 +41,17 @@ const styles = stylex.create({
 function AppRoutes() {
 	if (!serviceAvailable.value) {
 		return (
-			<div {...stylex.props(styles.rootCentered)}>
+			<main {...stylex.props(styles.rootCentered)}>
 				<ServiceUnavailable />
-			</div>
+			</main>
 		);
 	}
 
 	if (isKioskRoute()) {
 		return (
-			<div {...stylex.props(styles.root)}>
+			<main {...stylex.props(styles.root)}>
 				<Kiosk />
-			</div>
+			</main>
 		);
 	}
 
@@ -60,15 +60,15 @@ function AppRoutes() {
 	if (isAdminRoute()) {
 		if (!isAdminSession) {
 			return (
-				<div {...stylex.props(styles.rootCentered)}>
+				<main {...stylex.props(styles.rootCentered)}>
 					<Login mode="admin" />
-				</div>
+				</main>
 			);
 		}
 		return (
-			<div {...stylex.props(styles.rootWide)}>
+			<main {...stylex.props(styles.rootWide)}>
 				<QueueView role="admin" />
-			</div>
+			</main>
 		);
 	}
 
@@ -76,14 +76,14 @@ function AppRoutes() {
 
 	if (view.kind === "login") {
 		return (
-			<div {...stylex.props(styles.rootCentered)}>
+			<main {...stylex.props(styles.rootCentered)}>
 				<Login />
-			</div>
+			</main>
 		);
 	}
 
 	return (
-		<div
+		<main
 			{...stylex.props(
 				view.kind === "queues" && isAdminSession ? styles.rootWide : styles.root,
 			)}
@@ -93,7 +93,7 @@ function AppRoutes() {
 			) : (
 				<p>{view.message}</p>
 			)}
-		</div>
+		</main>
 	);
 }
 
