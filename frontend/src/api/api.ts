@@ -56,7 +56,7 @@ export async function createSession(
 		body: JSON.stringify({ username, pin }),
 	});
 	if (!res) {
-		return { error: "Can't reach the server right now" };
+		return { error: "Can't reach the server right now." };
 	} else if (!res.ok) {
 		const body = await res.json().catch(() => null);
 		return { error: body?.cause?.message ?? body?.message ?? "Failed to create session" };
@@ -70,7 +70,7 @@ export async function deleteSession(): Promise<Error | null> {
 
 	let res = await request(endpoint, { method: "DELETE" });
 	if (!res || !res.ok) {
-		return new Error("Failed to log out");
+		return new Error("Couldn't log you out. Please try again.");
 	}
 
 	return null;
@@ -119,7 +119,7 @@ export async function addToQueue(
 	let endpoint = `/api/queue/${id}`;
 
 	if (!isYouTubeLink(link)) {
-		return new Error("not a valid YouTube link");
+		return new Error("That doesn't look like a YouTube link.");
 	}
 
 	let res = await request(endpoint, {
@@ -128,7 +128,7 @@ export async function addToQueue(
 		body: JSON.stringify({ link, requestedBy }),
 	});
 	if (!res || !res.ok) {
-		return new Error("Error while adding Song to Queue");
+		return new Error("Couldn't add that song. Please try again.");
 	}
 
 	return null;
@@ -200,13 +200,13 @@ export async function voteOnSong(
 ): Promise<Error | null> {
 	const username = voterName();
 	if (!username) {
-		return new Error("Must be logged in to vote");
+		return new Error("You need to be signed in to vote.");
 	}
 
 	const waitMs = kioskVoteCooldownMs();
 	if (waitMs > 0) {
 		return new Error(
-			`One vote per minute — ${Math.ceil(waitMs / 1000)}s to go`,
+			`One vote per minute — ${Math.ceil(waitMs / 1000)}s to go.`,
 		);
 	}
 
@@ -216,7 +216,7 @@ export async function voteOnSong(
 		body: JSON.stringify({ link, username, direction }),
 	});
 	if (!res || !res.ok) {
-		return new Error("Error while voting on Song");
+		return new Error("Couldn't save your vote. Please try again.");
 	}
 
 	startKioskCooldown();
@@ -230,7 +230,7 @@ export async function removeFromQueue(
 	let endpoint = `/api/queue/${id}`;
 
 	if (!isYouTubeLink(link)) {
-		return new Error("not a valid YouTube link");
+		return new Error("That doesn't look like a YouTube link.");
 	}
 
 	let res = await request(endpoint, {
@@ -239,7 +239,7 @@ export async function removeFromQueue(
 		body: JSON.stringify({ link }),
 	});
 	if (!res || !res.ok) {
-		return new Error("Error while removing Song from Queue");
+		return new Error("Couldn't remove that song. Please try again.");
 	}
 
 	return null;

@@ -4,8 +4,8 @@ import { Smartphone } from "lucide-react";
 
 import { useSignal } from "@preact/signals-react";
 
-import { addToQueue, queues } from "@/api/api.ts";
-import ActionError, { actionError } from "@/components/actionError.tsx";
+import { queues } from "@/api/api.ts";
+import { requestSong } from "@/requestSong.ts";
 import Footer from "@/components/footer.tsx";
 import History from "@/components/history.tsx";
 import NowPlaying from "@/components/nowPlaying.tsx";
@@ -77,25 +77,6 @@ const styles = stylex.create({
 	},
 });
 
-// No session on a kiosk, so the request stays anonymous rather than being
-// attributed to whoever happens to be signed in on that machine.
-const requestLink = async (link: string) => {
-	const requestQueue = queues.value.find(
-		(q) => q.value.name === REQUEST_QUEUE_NAME,
-	);
-	if (!requestQueue) {
-		actionError.value =
-			"Couldn't find the request queue — it may still be loading. Try again in a moment.";
-		return;
-	}
-
-	actionError.value = null;
-	const error = await addToQueue(requestQueue.value.id, link);
-	if (error) {
-		actionError.value = error.message;
-	}
-};
-
 function JoinHero() {
 	const joinUrl = `${window.location.origin}/`;
 	const joinLabel = joinUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -139,8 +120,6 @@ export default function Kiosk() {
 		<div {...stylex.props(styles.root)}>
 			<JoinHero />
 
-			<ActionError />
-
 			{MOCK_QUEUE_CLOSED ? (
 				<QueueClosedBanner />
 			) : (
@@ -154,7 +133,8 @@ export default function Kiosk() {
 				onConfirm={() => {
 					const link = pendingLink.value;
 					pendingLink.value = null;
-					if (link) void requestLink(link);
+					// No session on a kiosk, so the request stays anonymous.
+					if (link) void requestSong(link);
 				}}
 			/>
 

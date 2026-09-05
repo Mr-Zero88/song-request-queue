@@ -3,6 +3,7 @@ import Login from "@/components/login";
 import QueueView from "@/components/queueView.tsx";
 import Kiosk from "@/components/kiosk.tsx";
 import ServiceUnavailable from "@/components/serviceUnavailable.tsx";
+import ToastHost from "@/components/ui/toast.tsx";
 import { isAdminRoute, isKioskRoute, resolveView } from "@/appView.ts";
 
 import * as stylex from "@stylexjs/stylex";
@@ -37,7 +38,7 @@ const styles = stylex.create({
 	},
 });
 
-function App() {
+function AppRoutes() {
 	if (!serviceAvailable.value) {
 		return (
 			<div {...stylex.props(styles.rootCentered)}>
@@ -93,6 +94,16 @@ function App() {
 				<p>{view.message}</p>
 			)}
 		</div>
+	);
+}
+
+function App() {
+	return (
+		<>
+			<AppRoutes />
+			{/* Mounted once so every view reports failures in the same place. */}
+			<ToastHost />
+		</>
 	);
 }
 

@@ -1,5 +1,4 @@
 import {
-	addToQueue,
 	deleteSession,
 	queues,
 	removeFromQueue,
@@ -14,7 +13,8 @@ import Button from "@/components/ui/button.tsx";
 import Card from "@/components/ui/card.tsx";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import QueueClosedBanner from "@/components/queueClosedBanner.tsx";
-import ActionError, { actionError } from "@/components/actionError.tsx";
+import { notify } from "@/components/ui/toast.tsx";
+import { requestSong } from "@/requestSong.ts";
 import ConfirmPopup from "@/components/confirmPopup.tsx";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import { useSignal } from "@preact/signals-react";
@@ -126,38 +126,16 @@ const styles = stylex.create({
 	},
 });
 
-const requestLink = async (link: string) => {
-	const requestQueue = queues.value.find(
-		(q) => q.value.name === REQUEST_QUEUE_NAME,
-	);
-	if (!requestQueue) {
-		actionError.value =
-			"Couldn't find the request queue — it may still be loading. Try again in a moment.";
-		return;
-	}
-
-	actionError.value = null;
-	const error = await addToQueue(
-		requestQueue.value.id,
-		link,
-		session.value?.username,
-	);
-	if (error) {
-		actionError.value = error.message;
-	}
-};
-
 const handleLogout = async () => {
 	const error = await deleteSession();
 	if (error) {
 		// The server-side session and its httpOnly cookie are still alive, so
 		// clearing `session` here would only log the user straight back in on the
 		// next reload. Keep them signed in and say what happened instead.
-		actionError.value = `${error.message} — you are still signed in.`;
+		notify(`${error.message} You are still signed in.`);
 		return;
 	}
 
-	actionError.value = null;
 	session.value = null;
 };
 
@@ -184,7 +162,7 @@ function OwnRequestRow({
 		isWithdrawing.value = true;
 		try {
 			const error = await removeFromQueue(queueId, song.link);
-			actionError.value = error ? error.message : null;
+			if (error) notify(error.message);
 		} finally {
 			isWithdrawing.value = false;
 		}
@@ -302,10 +280,11 @@ export default function QueueView({ role }: QueueViewProps) {
 					</Button>
 				</div>
 
-				<ActionError />
-
+	
 				<div {...stylex.props(styles.adminSearchRow)}>
-					<SearchBar onSelect={(link) => void requestLink(link)} />
+					<SearchBar
+						onSelect={(link) => void requestSong(link, session.value?.username)}
+					/>
 				</div>
 
 				<div {...stylex.props(styles.adminGrid)}>
@@ -339,11 +318,12 @@ export default function QueueView({ role }: QueueViewProps) {
 	return (
 		<>
 			{header}
-			<ActionError />
 			{MOCK_QUEUE_CLOSED ? (
 				<QueueClosedBanner />
 			) : (
-				<SearchBar onSelect={(link) => void requestLink(link)} />
+				<SearchBar
+						onSelect={(link) => void requestSong(link, session.value?.username)}
+					/>
 			)}
 			<NowPlaying />
 			<OwnRequestsSummary />

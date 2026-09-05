@@ -8,6 +8,7 @@ import {
 } from "@/api/api.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
 import { useVoteCooldown } from "@/hooks/useVoteCooldown.ts";
+import { notify } from "@/components/ui/toast.tsx";
 import { useSignal, type Signal } from "@preact/signals-react";
 import * as stylex from "@stylexjs/stylex";
 import { ArrowBigDown, ArrowBigUp, ListMusic, Trash2, type LucideIcon } from "lucide-react";
@@ -182,12 +183,6 @@ const styles = stylex.create({
 		textAlign: "center",
 		fontVariantNumeric: "tabular-nums",
 	},
-	voteError: {
-		color: colors.danger,
-		fontSize: fontSizes.xs,
-		flexBasis: "100%",
-		textAlign: "center",
-	},
 	voteCountPositive: {
 		color: colors.success,
 	},
@@ -251,7 +246,6 @@ function QueueSongItem({
 	const isMoving = useSignal(false);
 	const isRemoving = useSignal(false);
 	const isVoting = useSignal(false);
-	const voteError = useSignal<string | null>(null);
 	const confirmingRemove = useSignal(false);
 	const username = displayName();
 	// Attribution and voting identity differ on the kiosk: requests made there
@@ -283,12 +277,11 @@ function QueueSongItem({
 		if (!onVote || !voter || isVoting.value || cooldown > 0) return;
 
 		isVoting.value = true;
-		voteError.value = null;
 		try {
 			// A rejected vote otherwise looks exactly like a slow poll: the arrow
 			// simply never fills in and the user keeps tapping.
 			const error = await onVote(element, direction);
-			voteError.value = error ? error.message : null;
+			if (error) notify(error.message);
 		} finally {
 			isVoting.value = false;
 		}
@@ -371,11 +364,7 @@ function QueueSongItem({
 					>
 						<ArrowBigDown size={18} fill={userVote === "down" ? "currentColor" : "none"} />
 					</button>
-					{voteError.value ? (
-						<span role="alert" {...stylex.props(styles.voteError)}>
-							{voteError.value}
-						</span>
-					) : cooldown > 0 ? (
+					{cooldown > 0 ? (
 						<span {...stylex.props(styles.voteCooldown)}>
 							Next vote in {cooldown}s
 						</span>
