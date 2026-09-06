@@ -1,16 +1,16 @@
 import { serviceAvailable, session } from "@/api/api.ts";
-import Login from "@/components/login";
+import Login from "@/components/login.tsx";
 import QueueView from "@/components/queueView.tsx";
 import Kiosk from "@/components/kiosk.tsx";
 import ServiceUnavailable from "@/components/serviceUnavailable.tsx";
 import ToastHost from "@/components/ui/toast.tsx";
-import { isAdminRoute, isKioskRoute, resolveView } from "@/appView.ts";
+import { isAdminRoute, isKioskRoute } from "@/routes.ts";
 
 import * as stylex from "@stylexjs/stylex";
 import { layout, space } from "./vars.stylex.ts";
 
 const styles = stylex.create({
-	root: {
+	page: {
 		maxWidth: layout.contentMaxWidth,
 		margin: "auto",
 		padding: space.lg,
@@ -19,29 +19,27 @@ const styles = stylex.create({
 		flexDirection: "column",
 		gap: space.md,
 	},
-	rootWide: {
+	// The DJ console lays its queues out side by side and needs the full width.
+	wide: {
 		maxWidth: "100%",
 		margin: 0,
-		padding: space.lg,
-		boxSizing: "border-box",
-		display: "flex",
-		flexDirection: "column",
-		gap: space.md,
 	},
-	rootCentered: {
+	// Login and the offline notice are single panels, so they sit in the middle
+	// of the viewport instead of running down a column.
+	centered: {
 		minHeight: "100vh",
 		boxSizing: "border-box",
+		padding: space.lg,
 		display: "flex",
 		alignItems: "center",
 		justifyContent: "center",
-		padding: space.lg,
 	},
 });
 
 function AppRoutes() {
 	if (!serviceAvailable.value) {
 		return (
-			<main {...stylex.props(styles.rootCentered)}>
+			<main {...stylex.props(styles.centered)}>
 				<ServiceUnavailable />
 			</main>
 		);
@@ -49,55 +47,42 @@ function AppRoutes() {
 
 	if (isKioskRoute()) {
 		return (
-			<main {...stylex.props(styles.root)}>
+			<main {...stylex.props(styles.page)}>
 				<Kiosk />
 			</main>
 		);
 	}
 
-	const isAdminSession = session.value?.role === "admin";
+	const isAdmin = session.value?.role === "admin";
 
 	if (isAdminRoute()) {
-		if (!isAdminSession) {
-			return (
-				<main {...stylex.props(styles.rootCentered)}>
-					<Login mode="admin" />
-				</main>
-			);
-		}
-		return (
-			<main {...stylex.props(styles.rootWide)}>
+		return isAdmin ? (
+			<main {...stylex.props(styles.page, styles.wide)}>
 				<QueueView role="admin" />
+			</main>
+		) : (
+			<main {...stylex.props(styles.centered)}>
+				<Login mode="admin" />
 			</main>
 		);
 	}
 
-	const view = resolveView(session.value);
-
-	if (view.kind === "login") {
+	if (!session.value) {
 		return (
-			<main {...stylex.props(styles.rootCentered)}>
+			<main {...stylex.props(styles.centered)}>
 				<Login />
 			</main>
 		);
 	}
 
 	return (
-		<main
-			{...stylex.props(
-				view.kind === "queues" && isAdminSession ? styles.rootWide : styles.root,
-			)}
-		>
-			{view.kind === "queues" ? (
-				<QueueView role={view.session.role} />
-			) : (
-				<p>{view.message}</p>
-			)}
+		<main {...stylex.props(styles.page, isAdmin && styles.wide)}>
+			<QueueView role={session.value.role} />
 		</main>
 	);
 }
 
-function App() {
+export default function App() {
 	return (
 		<>
 			<AppRoutes />
@@ -106,5 +91,3 @@ function App() {
 		</>
 	);
 }
-
-export default App;

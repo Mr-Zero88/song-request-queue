@@ -1,114 +1,120 @@
-import { media } from "../breakpoints.stylex.ts";
 import { QRCodeSVG } from "qrcode.react";
 import * as stylex from "@stylexjs/stylex";
-import { Smartphone } from "lucide-react";
-
 import { useSignal } from "@preact/signals-react";
 
 import { requestSong } from "@/requestSong.ts";
 import ConfirmPopup from "@/components/confirmPopup.tsx";
+import PageHeader from "@/components/pageHeader.tsx";
 import QueueBoard from "@/components/queueBoard.tsx";
-import Card from "@/components/ui/card.tsx";
+import Button from "@/components/ui/button.tsx";
+import Modal from "@/components/ui/modal.tsx";
 
 import { colors, fontSizes, fontWeights, radius, space } from "../vars.stylex.ts";
 
-
 const styles = stylex.create({
-	root: {
-		display: "flex",
-		flexDirection: "column",
-		gap: space.md,
-	},
-	// A kiosk is read from across the room, so the join code is always on
-	// screen rather than hidden behind a button nobody walks over to press.
-	hero: {
-		display: "flex",
-		flexDirection: { default: "row", [media.narrow]: "column" },
-		alignItems: "center",
-		justifyContent: "space-between",
-		gap: space.md,
-	},
-	heroText: {
-		display: "flex",
-		flexDirection: "column",
-		gap: space.xs,
-		minWidth: 0,
-	},
-	heroTitle: {
-		color: colors.primaryText,
-		fontSize: { default: fontSizes.lg, [media.narrow]: fontSizes.md },
-		fontWeight: fontWeights.bold,
-		margin: 0,
-	},
-	heroSubtitle: {
-		display: "flex",
-		alignItems: "center",
-		gap: space.xs,
-		color: colors.secondaryText,
-		fontSize: fontSizes.sm,
-		margin: 0,
-	},
-	joinUrl: {
-		color: colors.accent,
-		fontSize: fontSizes.xs,
-		fontWeight: fontWeights.semibold,
-		wordBreak: "break-all",
-	},
-	// The code keeps its own light plate and quiet zone; scanners need the
-	// contrast, and in dark mode the card behind it is nearly black.
-	qrPlate: {
+	// A thumbnail, not a scan target: it only has to be big enough to recognise
+	// and tap.
+	qrButton: {
 		display: "flex",
 		flexShrink: 0,
+		padding: 0,
+		borderStyle: "none",
+		backgroundColor: "transparent",
+		lineHeight: 0,
+		cursor: "pointer",
+		borderRadius: radius.sm,
+	},
+	// Enlarged, the code needs its own light plate and quiet zone — scanners
+	// need the contrast, and in dark mode the panel is nearly black.
+	qrPlate: {
+		display: "flex",
+		justifyContent: "center",
 		borderRadius: radius.md,
 		backgroundColor: "#ffffff",
 		padding: space.md,
 		lineHeight: 0,
 	},
+	dialog: {
+		display: "flex",
+		flexDirection: "column",
+		alignItems: "center",
+		gap: space.md,
+	},
+	dialogUrl: {
+		color: colors.primaryText,
+		fontSize: fontSizes.sm,
+		fontWeight: fontWeights.semibold,
+		wordBreak: "break-all",
+		textAlign: "center",
+	},
 });
 
-function JoinHero() {
+function JoinCode() {
 	const joinUrl = `${window.location.origin}/`;
 	const joinLabel = joinUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+	const enlarged = useSignal(false);
 
 	return (
-		<Card>
-			<div {...stylex.props(styles.hero)}>
-				<div {...stylex.props(styles.heroText)}>
-					<h1 {...stylex.props(styles.heroTitle)}>Request your favorite songs</h1>
-					<p {...stylex.props(styles.heroSubtitle)}>
-						<Smartphone size={16} />
-						Scan the code to add a song from your phone
-					</p>
-					<span {...stylex.props(styles.joinUrl)}>{joinLabel}</span>
-				</div>
+		<>
+			<PageHeader
+				title="Hey, request your favorite songs!"
+				subtitle={joinLabel}
+				action={
+					<button
+						type="button"
+						aria-label="Enlarge the join code"
+						onClick={() => (enlarged.value = true)}
+						{...stylex.props(styles.qrButton)}
+					>
+						<QRCodeSVG
+							value={joinUrl}
+							size={64}
+							level="M"
+							marginSize={0}
+							bgColor="transparent"
+							fgColor={colors.primaryText}
+						/>
+					</button>
+				}
+			/>
 
-				<div {...stylex.props(styles.qrPlate)}>
-					{/* The spec asks for a 4-module quiet zone. Two modules sit
-					    inside the SVG, the white plate's padding supplies the rest,
-					    which keeps the code itself as large as possible at this size. */}
-					<QRCodeSVG
-						value={joinUrl}
-						size={132}
-						level="M"
-						marginSize={2}
-						bgColor="#ffffff"
-						fgColor="#000000"
-					/>
+			<Modal open={enlarged.value} onClose={() => (enlarged.value = false)}>
+				<div {...stylex.props(styles.dialog)}>
+					<div {...stylex.props(styles.qrPlate)}>
+						{/* The spec asks for a 4-module quiet zone. Two modules sit
+						    inside the SVG, the white plate's padding supplies the rest. */}
+						<QRCodeSVG
+							value={joinUrl}
+							size={240}
+							level="M"
+							marginSize={2}
+							bgColor="#ffffff"
+							fgColor="#000000"
+						/>
+					</div>
+					<span {...stylex.props(styles.dialogUrl)}>{joinLabel}</span>
+					<Button
+						variant="secondary"
+						size="sm"
+						onClick={() => (enlarged.value = false)}
+					>
+						Close
+					</Button>
 				</div>
-			</div>
-		</Card>
+			</Modal>
+		</>
 	);
 }
 
 export default function Kiosk() {
-	// A guest at the kiosk has no session, so there is no "your requests" list
-	// and no way to take a song back out. Confirm before it goes in.
+	// A guest at the kiosk has no session, so there is no way to take a song
+	// back out afterwards. Confirm before it goes in.
 	const pendingLink = useSignal<string | null>(null);
 
 	return (
 		<>
 			<QueueBoard
-				header={<JoinHero />}
+				header={<JoinCode />}
 				onSelectSong={(link) => (pendingLink.value = link)}
 			/>
 
@@ -119,7 +125,6 @@ export default function Kiosk() {
 				onConfirm={() => {
 					const link = pendingLink.value;
 					pendingLink.value = null;
-					// No session on a kiosk, so the request stays anonymous.
 					if (link) void requestSong(link);
 				}}
 			/>

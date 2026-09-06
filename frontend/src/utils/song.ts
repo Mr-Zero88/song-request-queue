@@ -1,4 +1,4 @@
-import type { QueueItem } from "song-request-queue-common/types/queue";
+import type { Queue, QueueItem } from "song-request-queue-common/types/queue";
 
 /** Upvotes minus downvotes. */
 export function netVotes(song: QueueItem): number {
@@ -22,4 +22,18 @@ export function requesterLabel(
 ): { label: string | null; isOwn: boolean } {
 	const isOwn = song.requestedBy != null && song.requestedBy === viewer;
 	return { label: isOwn ? "You" : (song.requestedBy ?? null), isOwn };
+}
+
+/**
+ * How many songs this person still has waiting in `queue`.
+ *
+ * Anonymous requests carry no name, so a kiosk guest is never counted — the
+ * limit only applies to someone signed in.
+ */
+export function countOwnRequests(
+	queue: Queue,
+	username: string | null,
+): number {
+	if (!username) return 0;
+	return queue.songs.filter((song) => song.requestedBy === username).length;
 }

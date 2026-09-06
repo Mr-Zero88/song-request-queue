@@ -1,7 +1,7 @@
 import type { Session } from "song-request-queue-common/types/session";
 import { Signal, signal } from "@preact/signals-react";
 import type { Queue, VoteDirection } from "song-request-queue-common/types/queue";
-import { isKioskRoute } from "@/appView.ts";
+import { isKioskRoute } from "@/routes.ts";
 
 // tracks whether the backend is reachable at all (network failure, or the
 // dev/reverse proxy reporting the upstream is down), as opposed to a normal
@@ -10,6 +10,13 @@ export const serviceAvailable = signal(true);
 
 // returned by the dev/reverse proxy itself when it can't reach the backend
 const GATEWAY_ERROR_STATUSES = new Set([502, 503, 504]);
+
+const JSON_HEADERS = {
+	Accept: "application/json",
+	"Content-Type": "application/json",
+};
+
+const POLL_INTERVAL_MS = 1000;
 
 async function request(
 	input: string,
@@ -30,14 +37,9 @@ async function request(
 }
 
 async function getSession(): Promise<Session | null> {
-	let endpoint = "/api/session";
-
-	let res = await request(endpoint);
-	if (!res || !res.ok) {
-		return null;
-	} else {
-		return await res.json();
-	}
+	const res = await request("/api/session");
+	if (!res || !res.ok) return null;
+	return await res.json();
 }
 
 export type CreateSessionResult =
@@ -48,27 +50,25 @@ export async function createSession(
 	username: string,
 	pin?: string,
 ): Promise<CreateSessionResult> {
-	let endpoint = "/api/session";
-
-	let res = await request(endpoint, {
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
+	const res = await request("/api/session", {
+		headers: JSON_HEADERS,
 		method: "POST",
 		body: JSON.stringify({ username, pin }),
 	});
 	if (!res) {
 		return { error: "Can't reach the server right now." };
-	} else if (!res.ok) {
-		const body = await res.json().catch(() => null);
-		return { error: body?.cause?.message ?? body?.message ?? "Failed to create session" };
-	} else {
-		return { session: await res.json() };
 	}
+	if (!res.ok) {
+		const body = await res.json().catch(() => null);
+		return {
+			error: body?.cause?.message ?? body?.message ?? "Failed to create session",
+		};
+	}
+	return { session: await res.json() };
 }
 
 export async function deleteSession(): Promise<Error | null> {
-	let endpoint = "/api/session";
-
-	let res = await request(endpoint, { method: "DELETE" });
+	const res = await request("/api/session", { method: "DELETE" });
 	if (!res || !res.ok) {
 		return new Error("Couldn't log you out. Please try again.");
 	}
@@ -77,31 +77,21 @@ export async function deleteSession(): Promise<Error | null> {
 }
 
 async function getQueues(): Promise<Queue[]> {
-	let endpoint = "/api/queues";
-
-	let res = await request(endpoint, {
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
+	const res = await request("/api/queues", {
+		headers: JSON_HEADERS,
 		method: "GET",
 	});
-	if (!res || !res.ok) {
-		return [];
-	} else {
-		return await res.json();
-	}
+	if (!res || !res.ok) return [];
+	return await res.json();
 }
 
 async function getQueue(id: string): Promise<Queue | null> {
-	let endpoint = `/api/queue/${id}`;
-
-	let res = await request(endpoint, {
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
+	const res = await request(`/api/queue/${id}`, {
+		headers: JSON_HEADERS,
 		method: "GET",
 	});
-	if (!res || !res.ok) {
-		return null;
-	} else {
-		return await res.json();
-	}
+	if (!res || !res.ok) return null;
+	return await res.json();
 }
 
 const youtubeRegex =
@@ -116,14 +106,12 @@ export async function addToQueue(
 	link: string,
 	requestedBy?: string,
 ): Promise<Error | null> {
-	let endpoint = `/api/queue/${id}`;
-
 	if (!isYouTubeLink(link)) {
 		return new Error("That doesn't look like a YouTube link.");
 	}
 
-	let res = await request(endpoint, {
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
+	const res = await request(`/api/queue/${id}`, {
+		headers: JSON_HEADERS,
 		method: "PUT",
 		body: JSON.stringify({ link, requestedBy }),
 	});
@@ -150,13 +138,12 @@ function kioskVoterId(): string {
 }
 
 // A kiosk stands in the open, so one person could otherwise plant themselves in
-// front of it and swing the whole queue. One vote per minute is enough to keep
-// it fair. The allowance is per device, not global: two tablets each keep their
-// own timestamp in their own storage, exactly like their voter identity.
+// front of it and swing the whole queue. The allowance is per device, not
+// global: two tablets each keep their own timestamp in their own storage.
 const KIOSK_VOTE_INTERVAL_MS = 60_000;
 const KIOSK_LAST_VOTE_KEY = "kioskLastVoteAt";
 
-function storedKioskVoteReadyAt(): number {
+function storedVoteReadyAt(): number {
 	if (!isKioskRoute()) return 0;
 	const last = Number(localStorage.getItem(KIOSK_LAST_VOTE_KEY) ?? 0);
 	return Number.isFinite(last) && last > 0 ? last + KIOSK_VOTE_INTERVAL_MS : 0;
@@ -164,9 +151,9 @@ function storedKioskVoteReadyAt(): number {
 
 // Epoch ms from which the kiosk may vote again; 0 means it is free to vote.
 // Survives a reload so the cooldown cannot be skipped by refreshing the page.
-export const kioskVoteReadyAt = signal(storedKioskVoteReadyAt());
+export const kioskVoteReadyAt = signal(storedVoteReadyAt());
 
-// Milliseconds still to wait, 0 when a vote is allowed.
+/** Milliseconds still to wait, 0 when a vote is allowed. */
 export function kioskVoteCooldownMs(): number {
 	if (!isKioskRoute()) return 0;
 	return Math.max(0, kioskVoteReadyAt.value - Date.now());
@@ -210,8 +197,8 @@ export async function voteOnSong(
 		);
 	}
 
-	let res = await request(`/api/queue/${id}/vote`, {
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
+	const res = await request(`/api/queue/${id}/vote`, {
+		headers: JSON_HEADERS,
 		method: "POST",
 		body: JSON.stringify({ link, username, direction }),
 	});
@@ -227,14 +214,12 @@ export async function removeFromQueue(
 	id: string,
 	link: string,
 ): Promise<Error | null> {
-	let endpoint = `/api/queue/${id}`;
-
 	if (!isYouTubeLink(link)) {
 		return new Error("That doesn't look like a YouTube link.");
 	}
 
-	let res = await request(endpoint, {
-		headers: { Accept: "application/json", "Content-Type": "application/json" },
+	const res = await request(`/api/queue/${id}`, {
+		headers: JSON_HEADERS,
 		method: "DELETE",
 		body: JSON.stringify({ link }),
 	});
@@ -249,18 +234,15 @@ export const session = signal<Session | null>(null);
 getSession().then((s) => (session.value = s));
 
 export const queues = signal<Signal<Queue>[]>([]);
-getQueues().then(
-	(q) =>
-		(queues.value = q.map((qq) => {
-			const queue = signal<Queue>(qq);
-			setInterval(() => {
-				getQueue(qq.id).then((qqq) => {
-					if (qqq) {
-						queue.value = qqq;
-					}
-				});
-			}, 1000);
+getQueues().then((loaded) => {
+	queues.value = loaded.map((initial) => {
+		const queue = signal<Queue>(initial);
+		setInterval(() => {
+			getQueue(initial.id).then((latest) => {
+				if (latest) queue.value = latest;
+			});
+		}, POLL_INTERVAL_MS);
 
-			return queue;
-		})),
-);
+		return queue;
+	});
+});

@@ -17,32 +17,34 @@ import { ArrowBigDown, ArrowBigUp, ListMusic, Trash2, type LucideIcon } from "lu
 
 import { colors, fontSizes, fontWeights, radius, space } from "../vars.stylex.ts";
 import { PLAYBACK_QUEUE_ID } from "../constants.ts";
-import { UNKNOWN_DURATION } from "@/utils/duration.ts";
 
 import Button from "@/components/ui/button.tsx";
 import Card from "@/components/ui/card.tsx";
 import EmptyState from "@/components/ui/emptyState.tsx";
 import LoadingSpinner from "@/components/ui/loadingSpinner.tsx";
+import VoteCount from "@/components/ui/voteCount.tsx";
 import ConfirmPopup from "@/components/confirmPopup.tsx";
 
 import type { Queue, QueueItem } from "song-request-queue-common/types/queue";
 
+/**
+ * How much room the row's buttons get. A table picks one width for all of its
+ * rows: each row is its own grid, so a content-sized action column would be
+ * measured per row and shift every column before it out of line.
+ */
+type ActionColumn = "none" | "remove" | "moveAndRemove";
 
-// Shared column widths so the header row and every song row line up exactly.
-// Only the last (actions) column is content-sized — since it's last, its
-// width never shifts the position/song/added-by/voting columns before it.
-const GRID_TEMPLATE = "2rem minmax(0, 1fr) 8.5rem 6rem 3.5rem auto";
-
-// On a phone the added-by and time columns collapse into the meta line under
-// the title, leaving just position / song / voting on one row.
-const GRID_TEMPLATE_NARROW = "1.5rem minmax(0, 1fr) auto";
+// The header row and every song row share these tracks so the columns line up.
+const columns = "2rem minmax(0, 1fr) 8.5rem 6rem";
+// On a phone added-by moves into the meta line under the title, leaving
+// position / song / voting.
+const narrowColumns = "1.5rem minmax(0, 1fr) auto";
 
 const styles = stylex.create({
-	root: {
+	list: {
 		listStyleType: "none",
 		display: "flex",
 		flexDirection: "column",
-		gap: 0,
 		marginTop: space.lg,
 		marginBottom: 0,
 		padding: 0,
@@ -60,7 +62,6 @@ const styles = stylex.create({
 
 	listHeader: {
 		display: { default: "grid", [media.narrow]: "none" },
-		gridTemplateColumns: GRID_TEMPLATE,
 		alignItems: "center",
 		gap: space.md,
 		paddingBottom: space.xs,
@@ -68,28 +69,44 @@ const styles = stylex.create({
 		borderBottomWidth: "1px",
 		borderBottomColor: colors.border,
 	},
+	gridNone: {
+		gridTemplateColumns: { default: columns, [media.narrow]: narrowColumns },
+	},
+	// A withdraw is one icon wide, so on a phone it fits beside the voting
+	// arrows rather than claiming a line of its own.
+	gridRemove: {
+		gridTemplateColumns: {
+			default: `${columns} 6rem`,
+			[media.narrow]: `${narrowColumns} 2rem`,
+		},
+	},
+	// "Move to Playback" needs a label, and on a phone the pair of buttons has
+	// nowhere to go but its own line beneath the row.
+	gridMoveAndRemove: {
+		gridTemplateColumns: {
+			default: `${columns} 11rem`,
+			[media.narrow]: narrowColumns,
+		},
+	},
+
 	headerCell: {
 		color: colors.secondaryText,
 		fontSize: fontSizes.xs,
 		fontWeight: fontWeights.semibold,
 		textTransform: "uppercase",
 	},
-	headerPosition: {
-		textAlign: "center",
-	},
-	headerVoting: {
-		textAlign: "center",
-	},
-	headerTime: {
+	headerCentered: {
 		textAlign: "center",
 	},
 
-	queueElement: {
+	row: {
 		display: "grid",
-		gridTemplateColumns: { default: GRID_TEMPLATE, [media.narrow]: GRID_TEMPLATE_NARROW },
 		alignItems: "center",
 		gap: { default: space.md, [media.narrow]: space.sm },
 		padding: { default: `${space.xs} 0`, [media.narrow]: `${space.sm} 0` },
+		// A row with a button is as tall as that button, and on a phone a
+		// two-line title is taller than a one-line one. Keeps rows even.
+		minHeight: { default: "3rem", [media.narrow]: "4.5rem" },
 		borderBottomStyle: "solid",
 		borderBottomWidth: "1px",
 		borderBottomColor: colors.border,
@@ -102,41 +119,59 @@ const styles = stylex.create({
 		fontSize: fontSizes.xs,
 		fontWeight: fontWeights.semibold,
 		textAlign: "center",
-		flexShrink: 0,
 	},
 	song: {
 		display: "flex",
 		flexDirection: "column",
 		justifyContent: "center",
-		gap: 0,
 		minWidth: 0,
 	},
 	songTitle: {
 		color: colors.primaryText,
 		fontSize: fontSizes.sm,
 		fontWeight: fontWeights.semibold,
-		// Long titles otherwise push the row to four or five lines on a phone.
-		display: { default: "block", [media.narrow]: "-webkit-box" },
+		// One line on a desktop so a long title can't outgrow its row; two on a
+		// phone, where one would cut most titles in half. The full text stays
+		// reachable through the link's tooltip.
+		display: "-webkit-box",
 		WebkitBoxOrient: "vertical",
-		WebkitLineClamp: { default: "none", [media.narrow]: 2 },
-		overflow: { default: "visible", [media.narrow]: "hidden" },
+		WebkitLineClamp: { default: 1, [media.narrow]: 2 },
+		overflow: "hidden",
 	},
-	// Added-by and time live in their own grid columns on a wide screen; on a
-	// phone they ride along in the meta line instead of costing a row each.
-	metaExtra: {
-		display: { default: "none", [media.narrow]: "inline" },
-	},
-	songAuthor: {
+	meta: {
+		display: "flex",
+		gap: space.xs,
+		minWidth: 0,
 		color: colors.secondaryText,
 		fontSize: fontSizes.xs,
 		margin: 0,
 	},
+	// The channel gives way first: on a narrow screen the requester matters more
+	// and would otherwise be the part that gets cut.
+	metaAuthor: {
+		minWidth: 0,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap",
+	},
+	// Added-by has its own column on a wide screen; on a phone it rides along in
+	// the meta line instead of costing a row.
+	metaRequester: {
+		display: { default: "none", [media.narrow]: "block" },
+		flexShrink: 0,
+		maxWidth: "50%",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap",
+	},
 	addedBy: {
-		display: { default: "flex", [media.narrow]: "none" },
-		alignItems: "center",
+		display: { default: "block", [media.narrow]: "none" },
 		color: colors.secondaryText,
 		fontSize: fontSizes.xs,
 		minWidth: 0,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap",
 	},
 	addedByOwn: {
 		color: colors.accent,
@@ -151,10 +186,6 @@ const styles = stylex.create({
 	},
 	voteButton: {
 		display: "flex",
-		":disabled": {
-			opacity: 0.4,
-			cursor: "not-allowed",
-		},
 		alignItems: "center",
 		justifyContent: "center",
 		width: "1.75rem",
@@ -163,19 +194,16 @@ const styles = stylex.create({
 		borderRadius: radius.sm,
 		backgroundColor: "transparent",
 		cursor: "pointer",
+		":disabled": {
+			opacity: 0.4,
+			cursor: "not-allowed",
+		},
 	},
-	voteButtonUp: {
+	voteUp: {
 		color: colors.success,
 	},
-	voteButtonDown: {
+	voteDown: {
 		color: colors.danger,
-	},
-	voteCount: {
-		color: colors.secondaryText,
-		fontSize: fontSizes.sm,
-		fontWeight: fontWeights.semibold,
-		minWidth: "1.25rem",
-		textAlign: "center",
 	},
 	voteCooldown: {
 		color: colors.secondaryText,
@@ -184,94 +212,93 @@ const styles = stylex.create({
 		textAlign: "center",
 		fontVariantNumeric: "tabular-nums",
 	},
-	voteCountPositive: {
-		color: colors.success,
-	},
-	voteCountNegative: {
-		color: colors.danger,
-	},
-	time: {
-		display: { default: "flex", [media.narrow]: "none" },
-		alignItems: "center",
-		justifyContent: "center",
-		color: colors.secondaryText,
-		fontSize: fontSizes.xs,
-		fontVariantNumeric: "tabular-nums",
-	},
+
 	actions: {
 		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
 		gap: space.sm,
-		flexShrink: 0,
+		minWidth: 0,
+	},
+	actionsFullWidth: {
 		gridColumn: { default: "auto", [media.narrow]: "1 / -1" },
 	},
 	actionButton: {
 		flex: { default: "initial", [media.narrow]: 1 },
+		minWidth: 0,
 	},
-	// Keeps the desktop grid columns aligned when a row has no voting or
-	// actions; on a phone those columns don't exist, so it takes no space.
-	gridSpacer: {
+	// The withdraw button sits in a 6rem column, so it drops the filled danger
+	// block for a quiet outline and lets the icon carry the shape.
+	withdrawButton: {
+		paddingInline: space.xs,
+		fontSize: fontSizes.xs,
+		minHeight: "2rem",
+		// Icon-only on a phone, where the column is a thumb wide.
+		width: { default: "auto", [media.narrow]: "2rem" },
+	},
+	withdrawLabel: {
+		display: { default: "inline", [media.narrow]: "none" },
+	},
+	// Holds a desktop column open when the row has nothing to put in it.
+	spacer: {
 		display: { default: "block", [media.narrow]: "none" },
+	},
+	spacerNarrow: {
+		display: "block",
 	},
 });
 
-type QueueProps = React.HTMLAttributes<HTMLDivElement> & {
-	queue: Signal<Queue>;
-	showMoveToPlaybackButton?: boolean;
-	showRemoveButton?: boolean;
-	showVoteButtons?: boolean;
-	showVoteCount?: boolean;
-	title?: string;
-	titleIcon?: LucideIcon;
-	songs?: QueueItem[];
-	emptyMessage?: string;
+const gridStyles = {
+	none: styles.gridNone,
+	remove: styles.gridRemove,
+	moveAndRemove: styles.gridMoveAndRemove,
 };
 
-type QueueSongItemProps = {
-	element: QueueItem;
+type QueueRowProps = {
+	song: QueueItem;
 	position: number;
-	onMoveToPlayback?: (element: QueueItem) => Promise<Error | null | undefined>;
-	onRemove?: (element: QueueItem) => Promise<Error | null>;
-	onVote?: (element: QueueItem, direction: "up" | "down") => Promise<Error | null>;
+	actionColumn: ActionColumn;
+	/** Whether the person looking at this row may remove it. */
+	canRemove: boolean;
+	/** A guest takes their own song back out; an admin removes someone else's. */
+	ownRemoval: boolean;
+	onMoveToPlayback?: (song: QueueItem) => Promise<Error | null | undefined>;
+	onRemove?: (song: QueueItem) => Promise<Error | null>;
+	onVote?: (song: QueueItem, direction: "up" | "down") => Promise<Error | null>;
 	showVoteCount?: boolean;
 };
 
-function QueueSongItem({
-	element,
+function QueueRow({
+	song,
 	position,
+	actionColumn,
+	canRemove,
+	ownRemoval,
 	onMoveToPlayback,
 	onRemove,
 	onVote,
 	showVoteCount,
-}: QueueSongItemProps) {
-	const metadata = useVideoMetadata(element.link);
+}: QueueRowProps) {
+	const metadata = useVideoMetadata(song.link);
 	const isMoving = useSignal(false);
 	const isRemoving = useSignal(false);
 	const isVoting = useSignal(false);
 	const confirmingRemove = useSignal(false);
-	const username = displayName();
 	// Attribution and voting identity differ on the kiosk: requests made there
 	// are anonymous, but votes still need someone to hang on.
 	const voter = voterName();
 	// 0 outside the kiosk, so the guest view keeps voting freely.
 	const cooldown = useVoteCooldown();
-	const { label: addedByLabel, isOwn: isOwnRequest } = requesterLabel(
-		element,
-		username,
-	);
-	const votes = netVotes(element);
-	// No duration source is wired up, so the column shows a dash rather than a
-	// number the guest would read as real.
-	const durationLabel: string | null = null;
-	const voteCountStyle =
-		votes > 0
-			? styles.voteCountPositive
-			: votes < 0
-				? styles.voteCountNegative
-				: null;
+	const { label: addedBy, isOwn } = requesterLabel(song, displayName());
+	const votes = netVotes(song);
+	const removeLabel = ownRemoval ? "Withdraw" : "Remove";
+	const showRemove = Boolean(onRemove) && canRemove;
+	const busy = isMoving.value || isRemoving.value;
+
 	const userVote: "up" | "down" | null =
-		voter && element.upvotes?.includes(voter)
+		voter && song.upvotes?.includes(voter)
 			? "up"
-			: voter && element.downvotes?.includes(voter)
+			: voter && song.downvotes?.includes(voter)
 				? "down"
 				: null;
 
@@ -282,7 +309,7 @@ function QueueSongItem({
 		try {
 			// A rejected vote otherwise looks exactly like a slow poll: the arrow
 			// simply never fills in and the user keeps tapping.
-			const error = await onVote(element, direction);
+			const error = await onVote(song, direction);
 			if (error) notify(error.message);
 		} finally {
 			isVoting.value = false;
@@ -290,57 +317,57 @@ function QueueSongItem({
 	};
 
 	const handleMoveToPlayback = async () => {
-		if (!onMoveToPlayback || isMoving.value) {
-			return;
-		}
+		if (!onMoveToPlayback || isMoving.value) return;
 
 		isMoving.value = true;
 		try {
-			await onMoveToPlayback(element);
+			const error = await onMoveToPlayback(song);
+			if (error) notify(error.message);
+			else notify("Moved to the playback queue.", "success");
 		} finally {
 			isMoving.value = false;
 		}
 	};
 
 	const handleRemove = async () => {
-		if (!onRemove || isRemoving.value) {
-			return;
-		}
+		if (!onRemove || isRemoving.value) return;
 
 		isRemoving.value = true;
 		try {
-			await onRemove(element);
+			const error = await onRemove(song);
+			if (error) notify(error.message);
+			else notify(ownRemoval ? "Withdrawn." : "Removed from the queue.", "success");
 		} finally {
 			isRemoving.value = false;
 		}
 	};
 
 	return (
-		<li {...stylex.props(styles.queueElement)}>
+		<li {...stylex.props(styles.row, gridStyles[actionColumn])}>
 			<span {...stylex.props(styles.position)}>{position}</span>
 
 			<div {...stylex.props(styles.song)}>
 				<a
 					{...stylex.props(styles.songTitle)}
-					href={element.link}
+					href={song.link}
+					title={metadata.value?.title}
 					target="_blank"
 					rel="noopener noreferrer"
 				>
 					{metadata.value?.title ?? <LoadingSpinner size={14} />}
 				</a>
-				<p {...stylex.props(styles.songAuthor)}>
-					{metadata.value?.author_name}
-					<span {...stylex.props(styles.metaExtra)}>
-						{addedByLabel ? ` \u00b7 ${addedByLabel}` : ""}
-						{durationLabel ? ` \u00b7 ${durationLabel}` : ""}
+				<p {...stylex.props(styles.meta)}>
+					<span {...stylex.props(styles.metaAuthor)}>
+						{metadata.value?.author_name}
 					</span>
+					{addedBy ? (
+						<span {...stylex.props(styles.metaRequester)}>· {addedBy}</span>
+					) : null}
 				</p>
 			</div>
 
-			<span
-				{...stylex.props(styles.addedBy, isOwnRequest ? styles.addedByOwn : null)}
-			>
-				{addedByLabel}
+			<span {...stylex.props(styles.addedBy, isOwn && styles.addedByOwn)}>
+				{addedBy}
 			</span>
 
 			{onVote ? (
@@ -351,18 +378,18 @@ function QueueSongItem({
 						aria-pressed={userVote === "up"}
 						disabled={isVoting.value || cooldown > 0}
 						onClick={() => void handleVote("up")}
-						{...stylex.props(styles.voteButton, styles.voteButtonUp)}
+						{...stylex.props(styles.voteButton, styles.voteUp)}
 					>
 						<ArrowBigUp size={18} fill={userVote === "up" ? "currentColor" : "none"} />
 					</button>
-					<span {...stylex.props(styles.voteCount, voteCountStyle)}>{votes}</span>
+					<VoteCount votes={votes} />
 					<button
 						type="button"
 						aria-label="Downvote"
 						aria-pressed={userVote === "down"}
 						disabled={isVoting.value || cooldown > 0}
 						onClick={() => void handleVote("down")}
-						{...stylex.props(styles.voteButton, styles.voteButtonDown)}
+						{...stylex.props(styles.voteButton, styles.voteDown)}
 					>
 						<ArrowBigDown size={18} fill={userVote === "down" ? "currentColor" : "none"} />
 					</button>
@@ -374,22 +401,24 @@ function QueueSongItem({
 				</div>
 			) : showVoteCount ? (
 				<div {...stylex.props(styles.voting)}>
-					<span {...stylex.props(styles.voteCount, voteCountStyle)}>{votes}</span>
+					<VoteCount votes={votes} />
 				</div>
 			) : (
-				<span {...stylex.props(styles.gridSpacer)} />
+				<span {...stylex.props(styles.spacer)} />
 			)}
 
-			<span {...stylex.props(styles.time)}>{durationLabel ?? UNKNOWN_DURATION}</span>
-
-			{onMoveToPlayback || onRemove ? (
-				<div {...stylex.props(styles.actions)}>
+			{actionColumn === "none" ? null : onMoveToPlayback || showRemove ? (
+				<div
+					{...stylex.props(
+						styles.actions,
+						onMoveToPlayback && styles.actionsFullWidth,
+					)}
+				>
 					{onMoveToPlayback ? (
 						<div {...stylex.props(styles.actionButton)}>
 							<Button
-								variant="primary"
 								size="sm"
-								disabled={isMoving.value || isRemoving.value}
+								disabled={busy}
 								onClick={() => void handleMoveToPlayback()}
 							>
 								<ListMusic size={14} />
@@ -397,27 +426,40 @@ function QueueSongItem({
 							</Button>
 						</div>
 					) : null}
-					{onRemove ? (
+					{showRemove ? (
 						<div {...stylex.props(styles.actionButton)}>
 							<Button
-								variant="danger"
+								variant={onMoveToPlayback ? "danger" : "secondary"}
 								size="sm"
-								disabled={isMoving.value || isRemoving.value}
+								xstyle={onMoveToPlayback ? undefined : styles.withdrawButton}
+								aria-label={removeLabel}
+								disabled={busy}
 								onClick={() => (confirmingRemove.value = true)}
 							>
 								<Trash2 size={14} />
-								{isRemoving.value ? "Removing..." : "Remove"}
+								<span {...stylex.props(styles.withdrawLabel)}>
+									{isRemoving.value ? "Removing" : removeLabel}
+								</span>
 							</Button>
 						</div>
 					) : null}
 				</div>
 			) : (
-				<span {...stylex.props(styles.gridSpacer)} />
+				<span
+					{...stylex.props(
+						styles.spacer,
+						actionColumn === "remove" && styles.spacerNarrow,
+					)}
+				/>
 			)}
 
 			<ConfirmPopup
 				open={confirmingRemove.value}
-				message="Remove this song from the queue?"
+				message={
+					ownRemoval
+						? "Take this song back out of the queue?"
+						: "Remove this song from the queue?"
+				}
 				onCancel={() => (confirmingRemove.value = false)}
 				onConfirm={() => {
 					confirmingRemove.value = false;
@@ -428,75 +470,103 @@ function QueueSongItem({
 	);
 }
 
+type QueueProps = {
+	queue: Signal<Queue>;
+	showMoveToPlayback?: boolean;
+	showRemoveButton?: boolean;
+	/**
+	 * Let a signed-in guest take their own requests back out. Decided per row,
+	 * so nobody can clear someone else's song.
+	 */
+	allowOwnRemoval?: boolean;
+	showVoteButtons?: boolean;
+	showVoteCount?: boolean;
+	title?: string;
+	titleIcon?: LucideIcon;
+	songs?: QueueItem[];
+	emptyMessage?: string;
+};
+
 export default function Queue({
 	queue,
-	showMoveToPlaybackButton = false,
+	showMoveToPlayback = false,
 	showRemoveButton = false,
+	allowOwnRemoval = false,
 	showVoteButtons = false,
 	showVoteCount = false,
 	title,
 	titleIcon: TitleIcon = ListMusic,
 	songs,
 	emptyMessage = "No songs in this queue yet.",
-	...rest
 }: QueueProps) {
-	const displayedSongs = songs ?? queue.value.songs;
+	const listed = songs ?? queue.value.songs;
+	const viewer = displayName();
 	const playbackQueue = queues.value.find(
 		(candidate) => candidate.value.id === PLAYBACK_QUEUE_ID,
 	);
+
 	const onMoveToPlayback =
-		showMoveToPlaybackButton &&
-		playbackQueue &&
-		queue.value.id !== PLAYBACK_QUEUE_ID
-			? async (element: QueueItem) => {
+		showMoveToPlayback && playbackQueue && queue.value.id !== PLAYBACK_QUEUE_ID
+			? async (song: QueueItem) => {
 					const addError = await addToQueue(
 						playbackQueue.value.id,
-						element.link,
-						element.requestedBy,
+						song.link,
+						song.requestedBy,
 					);
-					if (addError) {
-						console.error(`Error while moving song to playback queue: ${addError.message}`);
-						return addError;
-					}
-					const removeError = await removeFromQueue(queue.value.id, element.link);
-					if (removeError) {
-						console.error(`Error while removing song from request queue: ${removeError.message}`);
-						return removeError;
-					}
+					if (addError) return addError;
+					return await removeFromQueue(queue.value.id, song.link);
 				}
 			: undefined;
-	const onRemove = showRemoveButton
-		? async (element: QueueItem) => removeFromQueue(queue.value.id, element.link)
-		: undefined;
+	// Nobody is signed in on the kiosk, so no request there belongs to the person
+	// looking at it and the column stays off.
+	const canWithdraw = allowOwnRemoval && viewer != null;
+	const onRemove =
+		showRemoveButton || canWithdraw
+			? async (song: QueueItem) => removeFromQueue(queue.value.id, song.link)
+			: undefined;
 	const onVote = showVoteButtons
-		? async (element: QueueItem, direction: "up" | "down") =>
-				voteOnSong(queue.value.id, element.link, direction)
+		? async (song: QueueItem, direction: "up" | "down") =>
+				voteOnSong(queue.value.id, song.link, direction)
 		: undefined;
 
+	const actionColumn: ActionColumn = onMoveToPlayback
+		? "moveAndRemove"
+		: onRemove
+			? "remove"
+			: "none";
+
 	return (
-		<Card {...rest}>
+		<Card>
 			<h3 {...stylex.props(styles.queueTitle)}>
 				<TitleIcon size={18} />
 				{title ?? queue.value.name}
 			</h3>
-			{displayedSongs.length === 0 ? (
+			{listed.length === 0 ? (
 				<EmptyState>{emptyMessage}</EmptyState>
 			) : (
-				<div {...stylex.props(styles.listHeader)}>
-					<span {...stylex.props(styles.headerCell, styles.headerPosition)}>#</span>
+				<div {...stylex.props(styles.listHeader, gridStyles[actionColumn])}>
+					<span {...stylex.props(styles.headerCell, styles.headerCentered)}>#</span>
 					<span {...stylex.props(styles.headerCell)}>Song</span>
 					<span {...stylex.props(styles.headerCell)}>Added By</span>
-					<span {...stylex.props(styles.headerCell, styles.headerVoting)}>Voting</span>
-					<span {...stylex.props(styles.headerCell, styles.headerTime)}>Time</span>
-					<span />
+					<span {...stylex.props(styles.headerCell, styles.headerCentered)}>Voting</span>
+					{actionColumn === "none" ? null : (
+						<span {...stylex.props(styles.headerCell, styles.headerCentered)}>
+							Action
+						</span>
+					)}
 				</div>
 			)}
-			<ol {...stylex.props(styles.root)}>
-				{displayedSongs.map((element, index) => (
-					<QueueSongItem
-						key={element.id}
-						element={element}
+			<ol {...stylex.props(styles.list)}>
+				{listed.map((song, index) => (
+					<QueueRow
+						key={song.id}
+						song={song}
 						position={index + 1}
+						actionColumn={actionColumn}
+						canRemove={
+							showRemoveButton || (canWithdraw && song.requestedBy === viewer)
+						}
+						ownRemoval={!showRemoveButton}
 						onMoveToPlayback={onMoveToPlayback}
 						onRemove={onRemove}
 						onVote={onVote}

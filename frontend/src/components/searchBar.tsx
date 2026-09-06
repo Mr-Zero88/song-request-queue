@@ -10,6 +10,7 @@ import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import ConfirmPopup from "@/components/confirmPopup.tsx";
 
 import { colors, fontSizes, fontWeights, radius, space } from "../vars.stylex.ts";
+import { notify } from "@/components/ui/toast.tsx";
 
 type SearchBarProps = {
 	onSelect: (link: string) => void;
@@ -31,6 +32,11 @@ const styles = stylex.create({
 		borderColor: colors.border,
 		backgroundColor: colors.surface,
 		color: colors.primaryText,
+		outlineStyle: "none",
+		":focus": {
+			borderColor: colors.accent,
+			boxShadow: `0 0 0 3px color-mix(in srgb, ${colors.accent} 30%, transparent)`,
+		},
 	},
 	searchIcon: {
 		position: "absolute",
@@ -40,11 +46,6 @@ const styles = stylex.create({
 		color: colors.secondaryText,
 		pointerEvents: "none",
 	},
-	clipboardHintRow: {
-		display: "flex",
-		alignItems: "center",
-		gap: space.xs,
-	},
 	// Overlays the content below instead of pushing it down the page.
 	dropdown: {
 		position: "absolute",
@@ -53,9 +54,6 @@ const styles = stylex.create({
 		right: 0,
 		marginTop: space.sm,
 		zIndex: 20,
-	},
-	panel: {
-		marginTop: 0,
 	},
 	hint: {
 		color: colors.secondaryText,
@@ -87,15 +85,23 @@ const styles = stylex.create({
 		color: colors.primaryText,
 		fontSize: fontSizes.md,
 		fontWeight: fontWeights.semibold,
+		// Real titles run long; two lines beat an ellipsis at the first word.
+		display: "-webkit-box",
+		WebkitBoxOrient: "vertical",
+		WebkitLineClamp: 2,
 		overflow: "hidden",
-		textOverflow: "ellipsis",
-		whiteSpace: "nowrap",
 	},
 	resultAuthor: {
 		color: colors.secondaryText,
 		fontSize: fontSizes.sm,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap",
 	},
 	clipboardHint: {
+		display: "flex",
+		alignItems: "center",
+		gap: space.xs,
 		color: colors.accent,
 		fontSize: fontSizes.sm,
 		cursor: "pointer",
@@ -139,8 +145,8 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
 		try {
 			const value = await navigator.clipboard.readText();
 			if (value) query.value = value;
-		} catch (e) {
-			console.error("Failed to read clipboard:", e);
+		} catch {
+			notify("Couldn't read the clipboard. Paste the link into the field instead.");
 		}
 	};
 
@@ -174,44 +180,41 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
 			{active.value ? (
 				<div {...stylex.props(styles.dropdown)}>
 					<Card>
-						<div {...stylex.props(styles.panel)}>
-							{hasResult ? (
-								metadata.value ? (
-									<button
-										type="button"
-										onClick={() => select(query.value)}
-										{...stylex.props(styles.result)}
-									>
-										<YoutubeThumbnail
-											youtubeURL={query.value}
-											alt={metadata.value.title}
-										/>
-										<div {...stylex.props(styles.resultDesc)}>
-											<span {...stylex.props(styles.resultTitle)}>
-												{metadata.value.title}
-											</span>
-											<span {...stylex.props(styles.resultAuthor)}>
-												{metadata.value.author_name}
-											</span>
-										</div>
-									</button>
-								) : (
-									<p {...stylex.props(styles.hint)}>Loading preview...</p>
-								)
-							) : (
-								<p {...stylex.props(styles.hint)}>
-									Paste a YouTube link to find your song.
-								</p>
-							)}
+						{!hasResult ? (
+							<p {...stylex.props(styles.hint)}>
+								Paste a YouTube link to find your song.
+							</p>
+						) : metadata.value ? (
 							<button
 								type="button"
-								onClick={() => (confirmClipboard.value = true)}
-								{...stylex.props(styles.clipboardHint, styles.clipboardHintRow)}
+								onClick={() => select(query.value)}
+								{...stylex.props(styles.result)}
 							>
-								<Clipboard size={14} />
-								Use link from clipboard
+								<YoutubeThumbnail
+									youtubeURL={query.value}
+									alt={metadata.value.title}
+								/>
+								<div {...stylex.props(styles.resultDesc)}>
+									<span {...stylex.props(styles.resultTitle)}>
+										{metadata.value.title}
+									</span>
+									<span {...stylex.props(styles.resultAuthor)}>
+										{metadata.value.author_name}
+									</span>
+								</div>
 							</button>
-						</div>
+						) : (
+							<p {...stylex.props(styles.hint)}>Loading preview...</p>
+						)}
+
+						<button
+							type="button"
+							onClick={() => (confirmClipboard.value = true)}
+							{...stylex.props(styles.clipboardHint)}
+						>
+							<Clipboard size={14} />
+							Use link from clipboard
+						</button>
 					</Card>
 				</div>
 			) : null}

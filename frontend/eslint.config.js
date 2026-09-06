@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Writing to `signal.value` is how @preact/signals-react is used; the rule
+      // reads every one of those as mutating a hook result.
+      'react-hooks/immutability': 'off',
+      'react-refresh/only-export-components': ['warn', { allowExportNames: ['notify'] }],
+    },
   },
 ])

@@ -1,4 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
+import type { StyleXStyles } from "@stylexjs/stylex";
 import type { ButtonHTMLAttributes } from "react";
 
 import { colors, fontSizes, fontWeights, radius, space } from "../../vars.stylex.ts";
@@ -9,6 +10,8 @@ export type ButtonSize = "sm" | "md" | "lg";
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 	variant?: ButtonVariant;
 	size?: ButtonSize;
+	/** Extra StyleX styles, so a caller can fit a button to its column. */
+	xstyle?: StyleXStyles;
 };
 
 const styles = stylex.create({
@@ -81,6 +84,7 @@ export default function Button({
 	variant = "primary",
 	size = "md",
 	disabled,
+	xstyle,
 	...rest
 }: ButtonProps) {
 	return (
@@ -93,6 +97,7 @@ export default function Button({
 				sizeStyles[size],
 				variantStyles[variant],
 				disabled && styles.disabled,
+				xstyle,
 			)}
 		/>
 	);

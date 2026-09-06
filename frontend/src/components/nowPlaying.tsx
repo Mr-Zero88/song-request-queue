@@ -2,10 +2,12 @@ import { media } from "../breakpoints.stylex.ts";
 import { displayName, queues } from "@/api/api.ts";
 import { netVotes, requesterLabel, voteNoun } from "@/utils/song.ts";
 import { useVideoMetadata } from "@/hooks/useVideoMetadata.ts";
+import { useElapsedTime } from "@/hooks/useElapsedTime.ts";
 import YoutubeThumbnail from "@/components/youtubeThumbnail.tsx";
 import Card from "@/components/ui/card.tsx";
 import EmptyState from "@/components/ui/emptyState.tsx";
 import LoadingSpinner from "@/components/ui/loadingSpinner.tsx";
+import VoteCount from "@/components/ui/voteCount.tsx";
 import * as stylex from "@stylexjs/stylex";
 import { Radio } from "lucide-react";
 
@@ -13,7 +15,6 @@ import { colors, fontSizes, fontWeights, space } from "../vars.stylex.ts";
 import { PLAYBACK_QUEUE_ID } from "../constants.ts";
 
 import type { QueueItem } from "song-request-queue-common/types/queue";
-
 
 const waveBounce = stylex.keyframes({
 	"0%, 100%": { transform: "scaleY(0.35)" },
@@ -25,37 +26,18 @@ const styles = stylex.create({
 		display: "flex",
 		alignItems: "center",
 		gap: space.xs,
-		color: colors.secondaryText,
-		fontSize: fontSizes.sm,
+		color: colors.primaryText,
+		fontSize: fontSizes.lg,
 		fontWeight: fontWeights.semibold,
-		textTransform: "uppercase",
 		marginTop: 0,
 		marginBottom: space.sm,
 	},
-	wrapper: {
+	song: {
 		display: "flex",
 		flexDirection: "column",
 		gap: space.sm,
 		width: "100%",
 		minWidth: 0,
-	},
-	playbackRow: {
-		display: "flex",
-		alignItems: "center",
-		gap: space.md,
-	},
-	progressCol: {
-		display: "flex",
-		flexDirection: "column",
-		gap: space.xs,
-		flex: 1,
-		minWidth: 0,
-	},
-	progressLine: {
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: space.xl,
 	},
 	songTitle: {
 		display: "-webkit-box",
@@ -72,14 +54,35 @@ const styles = stylex.create({
 		color: colors.secondaryText,
 		fontSize: fontSizes.sm,
 		margin: 0,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap",
 	},
-	time: {
+	playbackRow: {
+		display: "flex",
+		alignItems: "center",
+		gap: space.md,
+	},
+	progress: {
+		display: "flex",
+		flexDirection: "column",
+		gap: space.xs,
+		flex: 1,
+		minWidth: 0,
+	},
+	progressLine: {
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: space.md,
+	},
+	elapsed: {
 		color: colors.secondaryText,
 		fontSize: fontSizes.xs,
 		fontVariantNumeric: "tabular-nums",
 		flexShrink: 0,
 	},
-	metaRow: {
+	meta: {
 		display: "flex",
 		justifyContent: "center",
 		textAlign: "center",
@@ -88,26 +91,16 @@ const styles = stylex.create({
 		color: colors.secondaryText,
 		fontSize: fontSizes.sm,
 		minWidth: 0,
+		// On a phone a single line truncates away the vote count itself, so let
+		// it wrap instead — the row is centred either way.
 		overflow: { default: "hidden", [media.narrow]: "visible" },
-		// On a phone the single line truncates away the vote count itself, so
-		// let it wrap instead — the row is centred either way.
 		textOverflow: { default: "ellipsis", [media.narrow]: "clip" },
 		whiteSpace: { default: "nowrap", [media.narrow]: "normal" },
+		overflowWrap: "anywhere",
 	},
 	requestedByOwn: {
 		color: colors.accent,
 		fontWeight: fontWeights.semibold,
-	},
-	voteCount: {
-		color: colors.secondaryText,
-		fontSize: fontSizes.sm,
-		fontWeight: fontWeights.semibold,
-	},
-	voteCountPositive: {
-		color: colors.success,
-	},
-	voteCountNegative: {
-		color: colors.danger,
 	},
 	waveform: {
 		display: "flex",
@@ -117,11 +110,7 @@ const styles = stylex.create({
 		height: "1.75rem",
 		flex: 1,
 		minWidth: 0,
-		// Without the time labels beside it the bars would spread across the whole
-		// card and read as sparse rather than as a waveform.
 		maxWidth: "26rem",
-		marginLeft: "auto",
-		marginRight: "auto",
 	},
 	waveformBar: {
 		display: "block",
@@ -136,15 +125,15 @@ const styles = stylex.create({
 	},
 });
 
-const WAVEFORM_BAR_HEIGHTS = [
+const barHeights = [
 	40, 70, 55, 90, 35, 65, 100, 50, 80, 30, 60, 95, 45, 75, 40, 85, 55, 70, 30,
 	90, 45, 65, 100, 50, 80, 35, 60, 95,
 ];
 
-function PlayingWaveform() {
+function Waveform() {
 	return (
 		<div {...stylex.props(styles.waveform)}>
-			{WAVEFORM_BAR_HEIGHTS.map((height, index) => (
+			{barHeights.map((height, index) => (
 				<span
 					key={index}
 					{...stylex.props(styles.waveformBar)}
@@ -155,28 +144,23 @@ function PlayingWaveform() {
 	);
 }
 
-type CurrentPlaybackSongProps = {
+type CurrentSongProps = {
 	song: QueueItem;
 	hero: boolean;
 };
 
-function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
+function CurrentSong({ song, hero }: CurrentSongProps) {
 	const metadata = useVideoMetadata(song.link);
-	const username = displayName();
-	const { label: requester, isOwn: isOwnRequest } = requesterLabel(song, username);
+	const elapsed = useElapsedTime(song.startedAt);
+	const { label: requester, isOwn } = requesterLabel(song, displayName());
 	const votes = netVotes(song);
-	const voteCountStyle =
-		votes > 0
-			? styles.voteCountPositive
-			: votes < 0
-				? styles.voteCountNegative
-				: null;
 
 	return (
-		<div {...stylex.props(styles.wrapper)}>
+		<div {...stylex.props(styles.song)}>
 			<a
 				{...stylex.props(styles.songTitle)}
 				href={song.link}
+				title={metadata.value?.title}
 				target="_blank"
 				rel="noopener noreferrer"
 			>
@@ -190,25 +174,23 @@ function CurrentPlaybackSong({ song, hero }: CurrentPlaybackSongProps) {
 					alt={metadata.value?.title ?? "Video thumbnail"}
 					size={hero ? "compactHero" : "compact"}
 				/>
-				<div {...stylex.props(styles.progressCol)}>
-					{/* No track length is available, so the waveform stands alone rather
-					    than framing invented timestamps. */}
+				<div {...stylex.props(styles.progress)}>
 					<div {...stylex.props(styles.progressLine)}>
-						<PlayingWaveform />
+						{elapsed ? (
+							<span {...stylex.props(styles.elapsed)}>{elapsed}</span>
+						) : null}
+						<Waveform />
 					</div>
 
-					<div {...stylex.props(styles.metaRow)}>
+					<div {...stylex.props(styles.meta)}>
 						<span
 							{...stylex.props(
 								styles.requestedBy,
-								isOwnRequest ? styles.requestedByOwn : null,
+								isOwn && styles.requestedByOwn,
 							)}
 						>
-							{requester ? `Requested by ${requester} \u00b7 ` : ""}
-							<span {...stylex.props(styles.voteCount, voteCountStyle)}>
-								{votes}
-							</span>{" "}
-							{voteNoun(votes)}
+							{requester ? `Requested by ${requester} · ` : ""}
+							<VoteCount votes={votes} /> {voteNoun(votes)}
 						</span>
 					</div>
 				</div>
@@ -226,18 +208,18 @@ export default function NowPlaying({ hero = false }: NowPlayingProps) {
 		(queue) => queue.value.id === PLAYBACK_QUEUE_ID,
 	);
 	// the playback queue keeps every song ever moved into it as history;
-	// the most recently added one is treated as the one currently playing
+	// the most recently added one is the one currently playing
 	const currentSong =
 		playbackQueue?.value.songs[playbackQueue.value.songs.length - 1];
 
 	return (
 		<Card>
 			<h3 {...stylex.props(styles.title)}>
-				<Radio size={14} />
+				<Radio size={18} />
 				Now Playing
 			</h3>
 			{currentSong ? (
-				<CurrentPlaybackSong song={currentSong} hero={hero} />
+				<CurrentSong song={currentSong} hero={hero} />
 			) : (
 				<EmptyState>Nothing is currently playing.</EmptyState>
 			)}

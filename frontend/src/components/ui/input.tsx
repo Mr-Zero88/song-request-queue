@@ -1,11 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
 import type { InputHTMLAttributes } from "react";
 
-import { colors, fontSizes, radius, space } from "../../vars.stylex.ts";
+import { colors, fontSizes, fontWeights, radius, space } from "../../vars.stylex.ts";
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
 	label?: string;
-	error?: string;
 };
 
 const styles = stylex.create({
@@ -16,7 +15,7 @@ const styles = stylex.create({
 	},
 	label: {
 		fontSize: fontSizes.sm,
-		fontWeight: "600",
+		fontWeight: fontWeights.semibold,
 		color: colors.secondaryText,
 	},
 	input: {
@@ -36,16 +35,9 @@ const styles = stylex.create({
 			boxShadow: `0 0 0 3px color-mix(in srgb, ${colors.accent} 30%, transparent)`,
 		},
 	},
-	inputError: {
-		borderColor: colors.danger,
-	},
-	error: {
-		fontSize: fontSizes.sm,
-		color: colors.danger,
-	},
 });
 
-export default function Input({ label, error, id, ...rest }: InputProps) {
+export default function Input({ label, id, ...rest }: InputProps) {
 	return (
 		<div {...stylex.props(styles.root)}>
 			{label ? (
@@ -53,12 +45,7 @@ export default function Input({ label, error, id, ...rest }: InputProps) {
 					{label}
 				</label>
 			) : null}
-			<input
-				id={id}
-				{...rest}
-				{...stylex.props(styles.input, error ? styles.inputError : null)}
-			/>
-			{error ? <span {...stylex.props(styles.error)}>{error}</span> : null}
+			<input id={id} {...rest} {...stylex.props(styles.input)} />
 		</div>
 	);
 }

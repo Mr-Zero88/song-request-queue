@@ -4,9 +4,11 @@ import { colors, shadows, radius } from "../vars.stylex.ts";
 import * as stylex from "@stylexjs/stylex";
 import { Music } from "lucide-react";
 
+type ThumbnailSize = "default" | "compact" | "compactHero";
+
 type YoutubeThumbnailProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 	youtubeURL: string;
-	size?: "default" | "hero" | "compact" | "compactHero";
+	size?: ThumbnailSize;
 };
 
 
@@ -18,11 +20,6 @@ const styles = stylex.create({
 		objectFit: "cover",
 		display: "block",
 		boxShadow: shadows.md,
-	},
-	hero: {
-		minWidth: "16rem",
-		width: "100%",
-		maxWidth: "24rem",
 	},
 	compact: {
 		minWidth: { default: "13rem", [media.tiny]: "8.5rem" },
@@ -43,18 +40,16 @@ const styles = stylex.create({
 	},
 });
 
-const SIZE_STYLES = {
+const sizeStyles = {
 	default: null,
-	hero: styles.hero,
 	compact: styles.compact,
 	compactHero: styles.compactHero,
 } as const;
 
-// The two large sizes are rendered well above 320px wide, so they get the
-// bigger poster; the rest would only pay for pixels they scale away.
-const SIZE_QUALITY: Record<string, ThumbnailQuality> = {
+// compactHero renders well above 320px wide, so it gets the bigger poster; the
+// others would only pay for pixels they scale away.
+const sizeQuality: Record<ThumbnailSize, ThumbnailQuality> = {
 	default: "medium",
-	hero: "high",
 	compact: "medium",
 	compactHero: "high",
 };
@@ -65,7 +60,7 @@ export default function YoutubeThumbnail({
 	size = "default",
 	...rest
 }: YoutubeThumbnailProps) {
-	const thumbnailSrc = getThumbnail(youtubeURL, SIZE_QUALITY[size]);
+	const thumbnailSrc = getThumbnail(youtubeURL, sizeQuality[size]);
 
 	// A link we can't parse has no poster to show; render a neutral tile rather
 	// than a broken image that collapses the row around it.
@@ -74,7 +69,7 @@ export default function YoutubeThumbnail({
 			<div
 				role="img"
 				aria-label={alt ?? "No thumbnail available"}
-				{...stylex.props(styles.thumbnail, SIZE_STYLES[size], styles.placeholder)}
+				{...stylex.props(styles.thumbnail, sizeStyles[size], styles.placeholder)}
 			>
 				<Music size={20} />
 			</div>
@@ -86,7 +81,7 @@ export default function YoutubeThumbnail({
 			loading="lazy"
 			decoding="async"
 			{...rest}
-			{...stylex.props(styles.thumbnail, SIZE_STYLES[size])}
+			{...stylex.props(styles.thumbnail, sizeStyles[size])}
 			src={thumbnailSrc}
 			alt={alt ?? "Video thumbnail"}
 		/>
