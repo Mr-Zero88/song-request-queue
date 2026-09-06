@@ -6,6 +6,7 @@ import * as stylex from "@stylexjs/stylex";
 export const media = stylex.defineConsts({
 	narrow: "@media (max-width: 639px)",
 	tiny: "@media (max-width: 479px)",
-	wide: "@media (min-width: 1024px)",
+	// Where two queue tables fit beside each other on the DJ console.
+	console: "@media (min-width: 1280px)",
 	reducedMotion: "@media (prefers-reduced-motion: reduce)",
 });

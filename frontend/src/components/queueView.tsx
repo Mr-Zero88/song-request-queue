@@ -41,11 +41,18 @@ const styles = stylex.create({
 		maxWidth: "40rem",
 		marginBottom: space.lg,
 	},
+	// A queue table's fixed columns come to ~460px before the title gets any
+	// room at all, so three of them side by side would need a screen nobody
+	// has. Two, once there is width for two.
 	adminGrid: {
 		display: "grid",
-		gridTemplateColumns: { default: "1fr", [media.wide]: "1.2fr 1fr 1fr" },
+		gridTemplateColumns: { default: "1fr", [media.console]: "1fr 1fr" },
 		gap: space.lg,
 		alignItems: "start",
+	},
+	nowPlayingCell: {
+		gridColumn: { default: "auto", [media.console]: "1 / -1" },
+		minWidth: 0,
 	},
 	// Grid items default to min-content, which lets a long song title push a
 	// column wider than its track.
@@ -99,7 +106,7 @@ export default function QueueView({ role }: QueueViewProps) {
 				</div>
 
 				<div {...stylex.props(styles.adminGrid)}>
-					<div {...stylex.props(styles.gridColumn)}>
+					<div {...stylex.props(styles.nowPlayingCell)}>
 						<NowPlaying hero />
 					</div>
 					<div {...stylex.props(styles.gridColumn)}>

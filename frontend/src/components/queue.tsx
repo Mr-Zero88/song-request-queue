@@ -35,7 +35,9 @@ import type { Queue, QueueItem } from "song-request-queue-common/types/queue";
 type ActionColumn = "none" | "remove" | "moveAndRemove";
 
 // The header row and every song row share these tracks so the columns line up.
-const columns = "2rem minmax(0, 1fr) 8.5rem 6rem";
+// The fixed ones stay small: the DJ console puts two of these tables side by
+// side, so the whole grid has to fit in about half a screen.
+const columns = "2rem minmax(0, 1fr) 6rem 6rem";
 // On a phone added-by moves into the meta line under the title, leaving
 // position / song / voting.
 const narrowColumns = "1.5rem minmax(0, 1fr) auto";
@@ -80,11 +82,12 @@ const styles = stylex.create({
 			[media.narrow]: `${narrowColumns} 2rem`,
 		},
 	},
-	// "Move to Playback" needs a label, and on a phone the pair of buttons has
-	// nowhere to go but its own line beneath the row.
+	// "Move to Playback" keeps its label; the remove beside it is icon-only so
+	// the pair still fits a console column. On a phone they have nowhere to go
+	// but their own line beneath the row.
 	gridMoveAndRemove: {
 		gridTemplateColumns: {
-			default: `${columns} 11rem`,
+			default: `${columns} 13rem`,
 			[media.narrow]: narrowColumns,
 		},
 	},
@@ -227,7 +230,7 @@ const styles = stylex.create({
 		flex: { default: "initial", [media.narrow]: 1 },
 		minWidth: 0,
 	},
-	// The withdraw button sits in a 6rem column, so it drops the filled danger
+	// A withdraw on its own sits in a 6rem column, so it drops the filled danger
 	// block for a quiet outline and lets the icon carry the shape.
 	withdrawButton: {
 		paddingInline: space.xs,
@@ -238,6 +241,16 @@ const styles = stylex.create({
 	},
 	withdrawLabel: {
 		display: { default: "inline", [media.narrow]: "none" },
+	},
+	// Beside "Move to Playback" it is the other way round: no room for a label
+	// in the shared column, but plenty on the phone's full-width action line.
+	removeButton: {
+		paddingInline: space.xs,
+		minHeight: "2rem",
+		width: { default: "2rem", [media.narrow]: "auto" },
+	},
+	removeLabel: {
+		display: { default: "none", [media.narrow]: "inline" },
 	},
 	// Holds a desktop column open when the row has nothing to put in it.
 	spacer: {
@@ -431,13 +444,22 @@ function QueueRow({
 							<Button
 								variant={onMoveToPlayback ? "danger" : "secondary"}
 								size="sm"
-								xstyle={onMoveToPlayback ? undefined : styles.withdrawButton}
+								xstyle={
+									onMoveToPlayback ? styles.removeButton : styles.withdrawButton
+								}
 								aria-label={removeLabel}
+								title={removeLabel}
 								disabled={busy}
 								onClick={() => (confirmingRemove.value = true)}
 							>
 								<Trash2 size={14} />
-								<span {...stylex.props(styles.withdrawLabel)}>
+								<span
+									{...stylex.props(
+										onMoveToPlayback
+											? styles.removeLabel
+											: styles.withdrawLabel,
+									)}
+								>
 									{isRemoving.value ? "Removing" : removeLabel}
 								</span>
 							</Button>
